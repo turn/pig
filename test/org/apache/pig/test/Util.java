@@ -1130,6 +1130,87 @@ public class Util {
         Assert.assertEquals("Comparing actual and expected results. ",
                 expectedResList, actualResList);
     }
+
+    
+    static public void checkQueryOutputsAfterSort(Iterator<Tuple> actualResultsIt, 
+            Tuple[] expectedResArray) {
+        List<Tuple> list = new ArrayList<Tuple>();
+        Collections.addAll(list, expectedResArray);
+        checkQueryOutputsAfterSort(actualResultsIt, list);
+    }
+     
+    
+    static private void convertBagToSortedBag(Tuple t) {
+        for (int i=0;i<t.size();i++) {
+           Object obj = null;
+           try {
+               obj = t.get(i);
+           } catch (ExecException e) {
+               // shall not happen
+           }
+           if (obj instanceof DataBag) {
+                DataBag bag = (DataBag)obj;
+                Iterator<Tuple> iter = bag.iterator();
+                DataBag sortedBag = DefaultBagFactory.getInstance().newSortedBag(null);
+                while (iter.hasNext()) {
+                    Tuple t2 = iter.next();
+                    sortedBag.add(t2);
+                    convertBagToSortedBag(t2);
+                }
+                try {
+                    t.set(i, sortedBag);
+                } catch (ExecException e) {
+                    // shall not happen
+                }
+           }
+        }
+    }
+    
+    static public void checkQueryOutputsAfterSortRecursive(Iterator<Tuple> actualResultsIt, 
+            String[] expectedResArray, String schemaString) throws IOException {
+        LogicalSchema resultSchema = org.apache.pig.impl.util.Utils.parseSchema(schemaString);
+        checkQueryOutputsAfterSortRecursive(actualResultsIt, expectedResArray, resultSchema);
+    }
+          /**
+     * Helper function to check if the result of a Pig Query is in line with 
+     * expected results. It sorts actual and expected string results before comparison
+     * 
+     * @param actualResultsIt Result of the executed Pig query
+     * @param expectedResArray Expected string results to validate against
+     * @param fs fieldSchema of expecteResArray
+     * @throws IOException 
+     */
+    static public void checkQueryOutputsAfterSortRecursive(Iterator<Tuple> actualResultsIt, 
+            String[] expectedResArray, LogicalSchema schema) throws IOException {
+        LogicalFieldSchema fs = new LogicalFieldSchema("tuple", schema, DataType.TUPLE);
+        ResourceFieldSchema rfs = new ResourceFieldSchema(fs);
+        
+        LoadCaster caster = new Utf8StorageConverter();
+        List<Tuple> actualResList = new ArrayList<Tuple>();
+        while(actualResultsIt.hasNext()){
+            actualResList.add(actualResultsIt.next());
+        }
+        
+        List<Tuple> expectedResList = new ArrayList<Tuple>();
+        for (String str : expectedResArray) {
+            Tuple newTuple = caster.bytesToTuple(str.getBytes(), rfs);
+            expectedResList.add(newTuple);
+        }
+        
+        for (Tuple t : actualResList) {
+            convertBagToSortedBag(t);
+        }
+        
+        for (Tuple t : expectedResList) {
+            convertBagToSortedBag(t);
+        }
+        
+        Collections.sort(actualResList);
+        Collections.sort(expectedResList);
+        
+        Assert.assertEquals("Comparing actual and expected results. ",
+                expectedResList, actualResList);
+    }
     
     public static String readFile(File file) throws IOException {
         BufferedReader reader = new BufferedReader(new FileReader(file));

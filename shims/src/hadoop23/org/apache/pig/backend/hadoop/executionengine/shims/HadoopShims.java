@@ -65,25 +65,4 @@ public class HadoopShims {
                 1, 1);
         return taskAttemptID;
     }
-    
-    static public TaskAttemptID createTaskAttemptID(String jtIdentifier, int jobId, boolean isMap,
-            int taskId, int id) {
-        if (isMap) {
-            return new TaskAttemptID(jtIdentifier, jobId, TaskType.MAP, taskId, id);
-        } else {
-            return new TaskAttemptID(jtIdentifier, jobId, TaskType.REDUCE, taskId, id);
-        }
-    }
-    
-    static public void storeSchemaForLocal(Job job, POStore st) {
-        // Doing nothing for hadoop 23
-    }
-    
-    static public String getFsCounterGroupName() {
-        return "org.apache.hadoop.mapreduce.FileSystemCounter";
-    }
-    
-    static public void commitOrCleanup(OutputCommitter oc, JobContext jc) throws IOException {
-        oc.commitJob(jc);
-    }
 }
