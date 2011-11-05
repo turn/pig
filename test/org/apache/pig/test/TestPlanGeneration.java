@@ -206,4 +206,49 @@ public class TestPlanGeneration extends junit.framework.TestCase {
         LogicalPlan lp = Util.parse(query, pc);
         Util.optimizeNewLP(lp);
     }
+    
+    public static class SchemaLoader extends PigStorage implements LoadMetadata {
+
+        Schema schema;
+        public SchemaLoader(String schemaString) throws ParserException {
+            schema = Utils.getSchemaFromString(schemaString);
+        }
+        @Override
+        public ResourceSchema getSchema(String location, Job job)
+                throws IOException {
+            return new ResourceSchema(schema);
+        }
+
+        @Override
+        public ResourceStatistics getStatistics(String location, Job job)
+                throws IOException {
+            return null;
+        }
+
+        @Override
+        public String[] getPartitionKeys(String location, Job job)
+                throws IOException {
+            return null;
+        }
+
+        @Override
+        public void setPartitionFilter(Expression partitionFilter)
+                throws IOException {
+        }
+    }
+    
+    @Test
+    public void testLoaderWithSchema() throws Exception {
+        String query = "a = load 'foo' using " + SchemaLoader.class.getName() + "('name,age,gpa');\n"
+                + "b = filter a by age==20;"
+                + "store b into 'output';";
+        LogicalPlan lp = Util.parse(query, pc);
+        Util.optimizeNewLP(lp);
+        
+        LOLoad loLoad = (LOLoad)lp.getSources().get(0);
+        LOFilter loFilter = (LOFilter)lp.getSuccessors(loLoad).get(0);
+        LOStore loStore = (LOStore)lp.getSuccessors(loFilter).get(0);
+        
+        Assert.assertTrue(lp.getSuccessors(loStore)==null);
+    }
 }
