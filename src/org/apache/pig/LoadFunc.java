@@ -303,7 +303,6 @@ public abstract class LoadFunc {
      */
     public final void warn(String msg, Enum warningEnum) {
         Counter counter = PigStatusReporter.getInstance().getCounter(warningEnum);
-        if (counter!=null)
-            counter.increment(1);
+        counter.increment(1);
     }
 }

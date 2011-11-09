@@ -44,43 +44,7 @@ INCOMPATIBLE CHANGES
 
 IMPROVEMENTS
 
-PIG-2541: Automatic record provenance (source tagging) for PigStorage (prkommireddi via daijy)
-
-PIG-2601: Additional document for 0.10 (daijy)
-
-PIG-2317: Ruby/Jruby UDFs (jcoveney via daijy)
-
-PIG-1270: Push limit into loader (daijy)
-
-PIG-2604: Pig should print its build info at runtime (traviscrawford via dvryaboy)
-
-PIG-2589: Additional e2e test for 0.10 new features (daijy)
-
-PIG-2182: Add more append support to DataByteArray (gsingers via daijy)
-
-PIG-438: Handle realiasing of existing Alias (A=B;) (daijy)
-
-PIG-2548: Support for providing parameters to python script (daijy)
-
-PIG-2518: Add ability to clean ivy cache in build.xml (daijy)
-
-PIG-2533: Pig MR job exceptions masked on frontend (traviscrawford via dvryaboy)
-
-PIG-2515: [piggybank] Make CustomFormatToISO return null on Exception in parsing dates (rjurney via dvryaboy)
-
-PIG-2503: Make @MonitoredUDF inherited (dvryaboy)
-
-PIG-2453: Fetching schema can be very slow for multi-thousand file LOADs (dvryaboy)
-
-PIG-2311: STRSPLIT needs to allow bytearray arguments (xuting via olgan)
-
-PIG-2300: Pig Docs - release 0.10.0 (and 0.9.1) (chandec via daijy)
-
-PIG-2230: Improved error message for invalid parameter format (xuitingz via olgan)
-
 PIG-2332: JsonLoader/JsonStorage (daijy)
-
-PIG-2328: Add builtin UDFs for building and using bloom filters (gates)
 
 PIG-2334: Set default number of reducers for S3N filesystem (ddaniels888 via daijy)
 
