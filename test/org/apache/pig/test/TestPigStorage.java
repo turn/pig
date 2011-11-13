@@ -431,6 +431,12 @@ public class TestPigStorage  {
         ResourceSchema schema = pigStorage.getSchema(globtestdir, new Job(ConfigurationUtil.toConfiguration(pigContext.getProperties())));
         Assert.assertTrue(schema==null);
         
+        // .pig_schema.input in along with input file
+        putSchemaFile(globtestdir+"a/a0/.pig_schema.input", testSchema);
+        schema = pigStorage.getSchema(globtestdir+"a/a0/*", new Job(ConfigurationUtil.toConfiguration(pigContext.getProperties())));
+        Assert.assertTrue(ResourceSchema.equals(schema, testSchema));
+        new File(globtestdir+"a/a0/.pig_schema.input").delete();
+        
         // if .pig_schema is in the input directory
         putSchemaFile(globtestdir+"a/a0/.pig_schema", testSchema);
         schema = pigStorage.getSchema(globtestdir+"a/a0", new Job(ConfigurationUtil.toConfiguration(pigContext.getProperties())));
@@ -457,77 +463,5 @@ public class TestPigStorage  {
         Assert.assertTrue(ResourceSchema.equals(schema, testSchema));
         new File(globtestdir+"a/a0/.pig_schema").delete();
         new File(globtestdir+"a/.pig_schema").delete();
-        
-        pigStorage = new PigStorage("\t", "-schema");
-        putSchemaFile(globtestdir+"a/.pig_schema", testSchema);
-        schema = pigStorage.getSchema(globtestdir+"{a,b}", new Job(ConfigurationUtil.toConfiguration(pigContext.getProperties())));
-        Assert.assertTrue(ResourceSchema.equals(schema, testSchema));
     }
-    
-    /**
-     * This is for testing source tagging option on PigStorage. When a user
-     * specifies '-tagsource' as an option, PigStorage must prepend the input
-     * source path to the tuple and "INPUT_FILE_NAME" to schema.
-     * 
-     * @throws Exception
-     */
-    @Test
-    public void testPigStorageSourceTagSchema() throws Exception {
-        pigContext.connect();
-        String query = "a = LOAD '" + datadir + "originput' using PigStorage('\\t') " +
-        "as (f1:chararray, f2:int);";
-        pig.registerQuery(query);
-        pig.store("a", datadir + "aout", "PigStorage('\\t', '-schema')");
-        // aout now has a schema.
-
-        // Verify that loading a-out with '-tagsource' produces
-        // the original schema, and prepends 'INPUT_FILE_NAME' to
-        // original schema.
-        pig.registerQuery("b = LOAD '" + datadir + "aout' using PigStorage('\\t', '-tagsource');");
-        Schema genSchema = pig.dumpSchema("b");
-        // Verify that -tagsource schema works
-        String[] aliases = {"INPUT_FILE_NAME", "f1", "f2"};
-        byte[] types = {DataType.CHARARRAY, DataType.CHARARRAY, DataType.INTEGER};
-        Schema newSchema = TypeCheckingTestUtil.genFlatSchema(
-                aliases,types);
-        Assert.assertTrue("schema with -tagsource preprends INPUT_FILE_NAME",
-                Schema.equals(newSchema, genSchema, true, false));
-        
-        // Verify that explicitly requesting no schema works
-        pig.registerQuery("d = LOAD '" + datadir + "aout' using PigStorage('\\t', '-noschema');");
-        genSchema = pig.dumpSchema("d");
-        assertNull(genSchema);
-
-        // Verify specifying your own schema works
-        pig.registerQuery("b = LOAD '" + datadir + "aout' using PigStorage('\\t', '-tagsource') " +
-        "as (input_file:chararray, foo:chararray, bar:int);");
-        genSchema = pig.dumpSchema("b");
-        String[] newAliases = {"input_file", "foo", "bar"};
-        byte[] newTypes = {DataType.CHARARRAY, DataType.CHARARRAY, DataType.INTEGER};
-        newSchema = TypeCheckingTestUtil.genFlatSchema(newAliases,newTypes);
-        Assert.assertTrue("explicit schema overrides metadata",
-                Schema.equals(newSchema, genSchema, true, false));
-    }
-    
-    @Test
-    public void testPigStorageSourceTagValue() throws Exception {
-        final String storeFileName = "part-m-00000";
-        pigContext.connect();
-
-        String query = "a = LOAD '" + datadir + "' using PigStorage('\\t') " +
-        "as (f1:chararray, f2:int);";
-        pig.registerQuery(query);
-        // Storing in 'aout' directory will store contents in part-m-00000
-        pig.store("a", datadir + "aout", "PigStorage('\\t', '-schema')");
-        
-        // Verify input source tag is present when using -tagsource
-        pig.registerQuery("b = LOAD '" + datadir + "aout' using PigStorage('\\t', '-tagsource');");
-        pig.registerQuery("c = foreach b generate INPUT_FILE_NAME;");
-        Iterator<Tuple> iter = pig.openIterator("c");
-        while(iter.hasNext()) {
-            Tuple tuple = iter.next();
-            String inputFileName = (String)tuple.get(0);
-            assertEquals("tagsource value must be part-m-00000", inputFileName, storeFileName);
-        }
-    }    
 }
