@@ -371,6 +371,8 @@ PIG-2590: running ant tar and rpm targets on same copy of pig source results in 
 
 BUG FIXES
 
+PIG-2374: streaming regression with dotNext (daijy)
+
 PIG-2387: BinStorageRecordReader causes negative progress (xutingz via daijy)
 
 PIG-2354: Several fixes for bin/pig (daijy)
