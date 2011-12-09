@@ -36,7 +36,8 @@
     <property name="pigtest" value="../../../build/test/classes" />
     <property name="udfjar" value="piggybank.jar" />
     <property name="src.dir" value="src/main/java/org/apache/pig/piggybank" />
-   <property name="hsqldb.jar" value="../../../build/ivy/lib/Pig/hsqldb-1.8.0.10.jar"/>
+    <property name="hsqldb.jar" value="../../../build/ivy/lib/Pig/hsqldb-1.8.0.10.jar"/>
+    <property name="ivy.lib.dir" value="../../../build/ivy/lib/Pig"/>
 
 	<!-- JobHistoryLoader currently does not support 0.23 -->
     <condition property="build.classes.excludes" value="**/HadoopJobHistoryLoader.java" else="">
@@ -76,7 +77,7 @@
         <path refid="pigudf.classpath"/>
     </path>
 
-    <target name="init">
+    <target name="init" depends="download-hive-deps,add-lib-deps">
         <mkdir dir="${build.dir}"/>
         <mkdir dir="${build.classes}"/>
         <mkdir dir="${test.build.dir}"/>
@@ -146,4 +147,27 @@
       </javadoc>
     </target>
     
+    <target name="download-hive-deps" if="hive.deps.notpresent" description="Downloads the hive dependencies from the archive.apache.org/dist site">
+      <mkdir dir="lib" />
+    	<get verbose="true" src="${apache.dist.site}/${hive.groupId}/${hive.artifactId}/${hive.artifactId}-${hive.version}/${hive.artifactId}-${hive.version}-bin.tar.gz" dest="lib/${hive.artifactId}-${hive.version}-bin.tar.gz"/>
+    	<untar compression="gzip"  src="lib/${hive.artifactId}-${hive.version}-bin.tar.gz" dest="lib/"/>
+    	<copy file="lib/${hive.artifactId}-${hive.version}-bin/lib/hive_exec.jar" tofile="lib/hive-${hive.version}.jar"/>
+    	<delete dir="lib/${hive.artifactId}-${hive.version}-bin"/>
+		<delete file="lib/${hive.artifactId}-${hive.version}-bin.tar.gz"/>    	
+    </target>
+    
+
+    <target name="add-lib-deps">
+        <copy todir="lib">
+          <fileset dir="${ivy.lib.dir}">
+            <include name="avro-*.jar"/>
+            <include name="jackson-core-*.jar"/>
+            <include name="jackson-mapper-*.jar"/>
+            <include name="json-simple-*.jar"/>
+            <include name="snappy-java-*.jar"/>
+          </fileset>
+        </copy>
+    </target>
+
 </project>
+  

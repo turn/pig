@@ -97,9 +97,18 @@
     <dependency org="com.sun.jersey" name="jersey-core" rev="${jersey-core.version}"
       conf="hadoop20->default"/>
     <dependency org="org.apache.hadoop" name="hadoop-core" rev="${hadoop-core.version}"
-      conf="hadoop20->default"/>
+      conf="hadoop20->default">
+      <exclude org="org.mortbay.jetty" module="*" />
+      <exclude org="javax.servlet" module="*" />
+      <exclude org="javax.servlet.jsp" module="*" />
+    </dependency>
+
     <dependency org="org.apache.hadoop" name="hadoop-test" rev="${hadoop-test.version}"
-      conf="hadoop20->default"/>
+      conf="hadoop20->default">
+      <exclude org="org.mortbay.jetty" module="*" />
+      <exclude org="javax.servlet" module="*" />
+      <exclude org="javax.servlet.jsp" module="*" />
+    </dependency>
     <dependency org="org.apache.hadoop" name="hadoop-annotations" 
       rev="${hadoop-common.version}" conf="hadoop23->master"/>
     <dependency org="org.apache.hadoop" name="hadoop-auth" 
@@ -152,6 +161,12 @@
     <dependency org="org.mortbay.jetty" name="jetty" rev="${jetty.version}"
       conf="compile->master"/>
     <dependency org="org.mortbay.jetty" name="jetty-util" rev="${jetty-util.version}"
+      conf="compile->master"/>
+    <dependency org="org.mortbay.jetty" name="jsp-api-2.1" rev="${jetty-jsp.version}"
+      conf="compile->master"/>
+    <dependency org="org.mortbay.jetty" name="jsp-2.1" rev="${jetty-jsp.version}"
+      conf="compile->master"/>
+    <dependency org="org.mortbay.jetty" name="servlet-api-2.5" rev="${jetty-jsp.version}"
       conf="compile->master"/>
     <dependency org="commons-logging" name="commons-logging" rev="${commons-logging.version}"
       conf="compile->master;checkstyle->master"/>
@@ -222,6 +237,7 @@
       <exclude org="com.sun.jersey" module="jersey-server"/>
       <exclude org="com.sun.jersey" module="jersey-json"/>
       <exclude org="asm" module="asm"/>
+      <exclude org="org.mortbay.jetty" module="*" />
     </dependency>
     <!-- for piggybank -->
     <dependency org="hsqldb" name="hsqldb" rev="${hsqldb.version}"
