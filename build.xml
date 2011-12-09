@@ -117,7 +117,7 @@
     <property name="pigunit.jarfile" value="pigunit.jar" />
     <property name="smoke.tests.jarfile" value="${build.dir}/${final.name}-smoketests.jar" />
     <property name="test.pigunit.src.dir" value="${test.src.dir}/org/apache/pig/test/pigunit" />
-    <property name="commons-lang.jarfile" value="commons-lang-2.4.jar" />    
+    <property name="commons-lang.jarfile" value="commons-lang-2.5.jar" />    
     <property name="test.pigunit.file" value="${test.src.dir}/pigunit-tests"/>
 
 
