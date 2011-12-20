@@ -23,7 +23,7 @@
   <parent>
     <groupId>com.cloudera.cdh</groupId>
     <artifactId>pig-root</artifactId>
-    <version>4.0-a1-SNAPSHOT</version>
+    <version>0.9.1-cdh4a1-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   
@@ -33,12 +33,6 @@
   <packaging>pom</packaging>
   
   <dependencies>
-    <dependency>
-      <groupId>com.cloudera.cdh</groupId>
-      <artifactId>pig-ant</artifactId>
-      <type>pom</type>
-    </dependency>
-    
     <dependency>
       <groupId>org.apache.pig</groupId>
       <artifactId>pig</artifactId>
