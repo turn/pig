@@ -65,4 +65,16 @@ public class HadoopShims {
                 1, 1);
         return taskAttemptID;
     }
+    
+    static public void storeSchemaForLocal(Job job, POStore st) {
+        // Doing nothing for hadoop 23
+    }
+    
+    static public String getFsCounterGroupName() {
+        return "org.apache.hadoop.mapreduce.FileSystemCounter";
+    }
+    
+    static public void commitOrCleanup(OutputCommitter oc, JobContext jc) throws IOException {
+        oc.commitJob(jc);
+    }
 }

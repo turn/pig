@@ -156,10 +156,10 @@
            input="${hadoop-core.version}"
            regexp="\d+\.(\d+)\.\d+"
            select="\1" /-->
-    <property name="hadoopversion" value="20" />
+    <property name="hadoopversion" value="23" />
 
     <condition property="isHadoop23">
-        <equals arg1="hadoopversion" arg2="23"/>
+        <equals arg1="${hadoopversion}" arg2="23"/>
     </condition>
 
     <property name="src.shims.dir" value="${basedir}/shims/src/hadoop${hadoopversion}" />
@@ -534,7 +534,7 @@
         </copy>
         <move file="${output.jarfile}" tofile="${output.stage.jarfile}"/>
         <sleep seconds="1"/>
-        <jar jarfile="${output.jarfile}" if="isHadoop23">
+        <jar jarfile="${output.jarfile}">
             <manifest>
                 <attribute name="Main-Class" value="org.apache.pig.Main" />
                 <section name="org/apache/pig">

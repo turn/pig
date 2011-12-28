@@ -174,16 +174,16 @@ public class PigOutputCommitter extends OutputCommitter {
             if (mapCommitter.first!=null) {
                 JobContext updatedContext = setUpContext(context,
                         mapCommitter.second);
-                // PIG-2642 promote files before calling storeCleanup/storeSchema 
+                storeCleanup(mapCommitter.second, updatedContext.getConfiguration());
                 try {
                     // Use reflection, 20.2 does not have such method
                     Method m = mapCommitter.first.getClass().getMethod("commitJob", JobContext.class);
                     m.setAccessible(true);
                     m.invoke(mapCommitter.first, updatedContext);
                 } catch (Exception e) {
-                    throw new IOException(e);
+                    // Should not happen
+                    assert(false);
                 }
-                storeCleanup(mapCommitter.second, updatedContext.getConfiguration());
             }
         }
         for (Pair<OutputCommitter, POStore> reduceCommitter :
@@ -191,16 +191,16 @@ public class PigOutputCommitter extends OutputCommitter {
             if (reduceCommitter.first!=null) {
                 JobContext updatedContext = setUpContext(context,
                         reduceCommitter.second);
-                // PIG-2642 promote files before calling storeCleanup/storeSchema 
+                storeCleanup(reduceCommitter.second, updatedContext.getConfiguration());
                 try {
                     // Use reflection, 20.2 does not have such method
                     Method m = reduceCommitter.first.getClass().getMethod("commitJob", JobContext.class);
                     m.setAccessible(true);
                     m.invoke(reduceCommitter.first, updatedContext);
                 } catch (Exception e) {
-                    throw new IOException(e);
+                    // Should not happen
+                    assert(false);
                 }
-                storeCleanup(reduceCommitter.second, updatedContext.getConfiguration());
             }
         }
     }

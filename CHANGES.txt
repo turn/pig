@@ -387,6 +387,10 @@ PIG-2619: HBaseStorage constructs a Scan with cacheBlocks = false (andy lindeman
 
 PIG-2590: running ant tar and rpm targets on same copy of pig source results in problems (thejas)
 
+IMPROVEMENTS
+
+PIG-2347: Fix Pig Unit tests for hadoop 23 (daijy)
+
 BUG FIXES
 
 PIG-2291: PigStats.isSuccessful returns false if embedded pig script has dump (xutingz via daijy)

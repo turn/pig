@@ -66,4 +66,19 @@ public class HadoopShims {
     static public TaskAttemptID getNewTaskAttemptID() {
         return new TaskAttemptID();
     }
+    
+    static public void storeSchemaForLocal(Job job, POStore st) throws IOException {
+        JobContext jc = HadoopShims.createJobContext(job.getJobConf(), 
+                new org.apache.hadoop.mapreduce.JobID());
+        JobContext updatedJc = PigOutputCommitter.setUpContext(jc, st);
+        PigOutputCommitter.storeCleanup(st, updatedJc.getConfiguration());
+    }
+
+    static public String getFsCounterGroupName() {
+        return "FileSystemCounters";
+    }
+
+    static public void commitOrCleanup(OutputCommitter oc, JobContext jc) throws IOException {
+        oc.cleanupJob(jc);
+    }
 }
