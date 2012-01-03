@@ -61,8 +61,7 @@ public class TestPigProgressReporting extends TestCase {
             Assert.fail (e.getMessage());
         }finally{
             // Set back the orginal value
-            if (taskTimeout!=null)
-                cluster.setProperty("mapred.task.timeout", taskTimeout);   
+            cluster.setProperty("mapred.task.timeout", taskTimeout);   
         }
         
     }

@@ -42,7 +42,7 @@ public class ProgressableReporter implements PigProgressable {
     public void progress(String msg) {
         try {
             rep.setStatus(msg);
-        }catch (Exception e) {
+        }catch (IOException e) {
             rep.progress();
         }
     }
