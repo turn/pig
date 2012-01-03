@@ -123,22 +123,13 @@ public class JsonMetadata implements LoadMetadata, StoreMetadata {
                         Path parent = descriptorPath.getParent();
                         String parentName = parent.toString();
                         container = new HDirectory((HDataStorage)storage,parent);
-                        
-                        // try prefix.filename for the file
-                        ElementDescriptor metaFilePath = storage.asElement(parentName, prefix+"."+fileName);
-
-                        // if the file has a custom schema, use it
-                        if (metaFilePath.exists()) {
-                            metaFileSet.add(metaFilePath);
-                            continue;
-                        }
                     } else { // descriptor instanceof HDirectory
                         container = (HDirectory)descriptor;
                     }
 
                     // if no custom schema, try the parent directory
-                    ElementDescriptor metaFilePath = storage.asElement(container, prefix);
-                    if (metaFilePath.exists()) {
+                    ElementDescriptor metaFilePath = storage.asElement(container, metaname);
+                    if (exists(metaFilePath)) {
                         metaFileSet.add(metaFilePath);
                     }
                 }
