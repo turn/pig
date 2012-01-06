@@ -45,6 +45,7 @@ public class UserFuncExpression extends LogicalExpression {
     private EvalFunc<?> ef = null;
     private String signature;
     private static int sigSeq=0;
+    private boolean viaDefine=false; //this represents whether the function was instantiate via a DEFINE statement or not
     
     public UserFuncExpression(OperatorPlan plan, FuncSpec funcSpec) {
         super("UserFunc", plan);
