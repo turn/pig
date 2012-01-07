@@ -232,7 +232,7 @@
     <path id="test.classpath">
         <pathelement location="${build.classes}"/>
         <pathelement location="${test.src.dir}"/>
-        <fileset dir="${ivy.lib.dir}" includes="hadoop*.jar"/>
+        <pathelement location="contrib/piggybank/java/piggybank.jar"/>
         <path refid="classpath"/>
     </path>
 
