@@ -138,15 +138,14 @@ public class TestCommit extends TestCase {
             if (t.get(0).equals(expected1.get(0)) && t.get(1).equals(expected1.get(1)) && t.get(2).equals(expected1.get(2)) && t.get(3).equals(expected1.get(3))) {
                 contain1 = true;
             }
-            
+
             if (t.get(0).equals(expected2.get(0)) && t.get(1).equals(expected2.get(1)) && t.get(2).equals(expected2.get(2)) && t.get(3).equals(expected2.get(3))) {
                 contain2 = true;
             }
-            
+
         }
         pigServer.deleteFile("testCheckin2-output.txt");
         assertEquals(count, 2);
         assertTrue(contain1 && contain2);
-        Util.deleteFile(cluster, "testCheckin2-input.txt");
-    }    
+    }
 }
