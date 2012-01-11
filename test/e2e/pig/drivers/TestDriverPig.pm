@@ -364,8 +364,33 @@ sub getPigCmd($$$)
         $ENV{'PIG_OPTS'} = undef;
     }
 
+        if (defined($ENV{'HADOOP_HOME'})) {
+            print $log "HADOOP_HOME=" . $ENV{'HADOOP_HOME'} . "\n";
+        }
+        if (defined($ENV{'HADOOP_CONF_DIR'})) {
+            print $log "HADOOP_CONF_DIR=" . $ENV{'HADOOP_CONF_DIR'} . "\n";
+        }
+        if (defined($ENV{'HADOOP_PREFIX'})) {
+            print $log "HADOOP_PREFIX=" . $ENV{'HADOOP_PREFIX'} . "\n";
+        }
+        if (defined($ENV{'HADOOP_COMMON_HOME'})) {
+            print $log "HADOOP_COMMON_HOME=" . $ENV{'HADOOP_COMMON_HOME'} . "\n";
+        }
+        if (defined($ENV{'HADOOP_HDFS_HOME'})) {
+            print $log "HADOOP_HDFS_HOME=" . $ENV{'HADOOP_HDFS_HOME'} . "\n";
+        }
+        if (defined($ENV{'HADOOP_MAPRED_HOME'})) {
+            print $log "HADOOP_MAPRED_HOME=" . $ENV{'HADOOP_MAPRED_HOME'} . "\n";
+        }
+        if (defined($ENV{'YARN_HOME'})) {
+            print $log "YARN_HOME=" . $ENV{'YARN_HOME'} . "\n";
+        }
+        if (defined($ENV{'YARN_CONF_DIR'})) {
+            print $log "=" . $ENV{'YARN_CONF_DIR'} . "\n";
+        }
+	print $log "PIG_CLASSPATH=" . $ENV{'PIG_CLASSPATH'} . "\n";
+        print $log "PIG_OPTS=" .$ENV{'PIG_OPTS'} . "\n";
 	print $log "Returning Pig command " . join(" ", @pigCmd) . "\n";
-	print $log "With PIG_CLASSPATH set to " . $ENV{'PIG_CLASSPATH'} . " and PIG_OPTS set to " . $ENV{'PIG_OPTS'} . "\n";
     return @pigCmd;
 }
 
@@ -414,7 +439,6 @@ sub runPig
     }
 
     # Run the command
-    print $log "$0::$className::$subName INFO: Going to run pig command: @cmd\n";
 
     IPC::Run::run(\@cmd, \undef, $log, $log) or
         die "Failed running $pigfile\n";
@@ -554,30 +578,14 @@ sub generateBenchmark
                 $orighadoopyarnhome = $ENV{'YARN_HOME'};
                 $orighadoopyarnconf = $ENV{'YARN_CONF_DIR'};
 
-                if (defined($ENV{'OLD_HADOOP_HOME'}) && $ENV{'OLD_HADOOP_HOME'} ne "") {
-                    $ENV{'HADOOP_HOME'} = $ENV{'OLD_HADOOP_HOME'};
-                }
-                if (defined($ENV{'PH_OLD_CLUSTER_CONF'}) && $ENV{'PH_OLD_CLUSTER_CONF'} ne "") {
-                    $ENV{'HADOOP_CONF_DIR'} = $ENV{'PH_OLD_CLUSTER_CONF'};
-                }
-                if (defined($ENV{'OLD_HADOOP_PREFIX'})) {
-                    $ENV{'HADOOP_PREFIX'} = $ENV{'OLD_HADOOP_PREFIX'};
-                }
-                if (defined($ENV{'OLD_HADOOP_COMMON_HOME'})) {
-                    $ENV{'HADOOP_COMMON_HOME'} = $ENV{'OLD_HADOOP_COMMON_HOME'};
-                }
-                if (defined($ENV{'OLD_HADOOP_HDFS_HOME'})) {
-                    $ENV{'HADOOP_HDFS_HOME'} = $ENV{'OLD_HADOOP_HDFS_HOME'};
-                }
-                if (defined($ENV{'OLD_HADOOP_MAPRED_HOME'})) {
-                    $ENV{'HADOOP_MAPRED_HOME'} = $ENV{'OLD_HADOOP_MAPRED_HOME'};
-                }
-                if (defined($ENV{'OLD_YARN_HOME'})) {
-                    $ENV{'YARN_HOME'} = $ENV{'OLD_YARN_HOME'};
-                }
-                if (defined($ENV{'OLD_YARN_CONF_DIR'})) {
-                    $ENV{'YARN_CONF_DIR'} = $ENV{'OLD_YARN_CONF_DIR'};
-                }
+                $ENV{'HADOOP_HOME'} = $ENV{'OLD_HADOOP_HOME'};
+                $ENV{'HADOOP_CONF_DIR'} = $ENV{'PH_OLD_CLUSTER_CONF'};
+                $ENV{'HADOOP_PREFIX'} = $ENV{'OLD_HADOOP_PREFIX'};
+                $ENV{'HADOOP_COMMON_HOME'} = $ENV{'OLD_HADOOP_COMMON_HOME'};
+                $ENV{'HADOOP_HDFS_HOME'} = $ENV{'OLD_HADOOP_HDFS_HOME'};
+                $ENV{'HADOOP_MAPRED_HOME'} = $ENV{'OLD_HADOOP_MAPRED_HOME'};
+                $ENV{'YARN_HOME'} = $ENV{'OLD_YARN_HOME'};
+                $ENV{'YARN_CONF_DIR'} = $ENV{'OLD_YARN_CONF_DIR'};
 	}
 	# Modify the test number so we don't run over the actual test output
 	# and logs
