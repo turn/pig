@@ -416,6 +416,8 @@ PIG-2590: running ant tar and rpm targets on same copy of pig source results in 
 
 IMPROVEMENTS
 
+PIG-2471: Pig Requirements Hadoop (chandec via daijy)
+
 PIG-2431: Upgrade bundled hadoop version to 1.0.0 (daijy)
 
 PIG-2447: piggybank: get hive dependency from maven (thw via azaroth)
