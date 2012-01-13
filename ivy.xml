@@ -86,6 +86,14 @@
       conf="hadoop23->master"/>
     <dependency org="com.google.inject.extensions" name="guice-servlet" rev="${guice-servlet.version}"
       conf="hadoop23->master"/>
+    <dependency org="javax.inject" name="javax.inject" rev="${javax.inject.version}"
+      conf="hadoop23->master"/>
+
+    <dependency org="javax.xml.bind" name="jaxb-api" rev="${jaxb.api.version}"
+      conf="hadoop23->master"/>
+    <dependency org="com.sun.xml.bind" name="jaxb-impl" rev="${jaxb.impl.version}"
+      conf="hadoop23->master"/>
+
     <dependency org="aopalliance" name="aopalliance" rev="${aopalliance.version}"
       conf="hadoop23->master"/>
     <dependency org="org.mortbay.jetty" name="jsp-2.1" rev="${jasper.version}"
