@@ -364,33 +364,32 @@ sub getPigCmd($$$)
         $ENV{'PIG_OPTS'} = undef;
     }
 
-        if (defined($ENV{'HADOOP_HOME'})) {
+        if (defined($ENV{'HADOOP_HOME'}) && $ENV{'HADOOP_HOME'} ne "") {
             print $log "HADOOP_HOME=" . $ENV{'HADOOP_HOME'} . "\n";
         }
-        if (defined($ENV{'HADOOP_CONF_DIR'})) {
+        if (defined($ENV{'HADOOP_CONF_DIR'}) && $ENV{'HADOOP_CONF_DIR'} ne "") {
             print $log "HADOOP_CONF_DIR=" . $ENV{'HADOOP_CONF_DIR'} . "\n";
         }
-        if (defined($ENV{'HADOOP_PREFIX'})) {
+        if (defined($ENV{'HADOOP_PREFIX'}) && $ENV{'HADOOP_PREFIX'} ne "") {
             print $log "HADOOP_PREFIX=" . $ENV{'HADOOP_PREFIX'} . "\n";
         }
-        if (defined($ENV{'HADOOP_COMMON_HOME'})) {
+        if (defined($ENV{'HADOOP_COMMON_HOME'}) && $ENV{'HADOOP_COMMON_HOME'} ne "") {
             print $log "HADOOP_COMMON_HOME=" . $ENV{'HADOOP_COMMON_HOME'} . "\n";
         }
-        if (defined($ENV{'HADOOP_HDFS_HOME'})) {
+        if (defined($ENV{'HADOOP_HDFS_HOME'}) && $ENV{'HADOOP_HDFS_HOME'} ne "") {
             print $log "HADOOP_HDFS_HOME=" . $ENV{'HADOOP_HDFS_HOME'} . "\n";
         }
-        if (defined($ENV{'HADOOP_MAPRED_HOME'})) {
+        if (defined($ENV{'HADOOP_MAPRED_HOME'}) && $ENV{'HADOOP_MAPRED_HOME'} ne "") {
             print $log "HADOOP_MAPRED_HOME=" . $ENV{'HADOOP_MAPRED_HOME'} . "\n";
         }
-        if (defined($ENV{'YARN_HOME'})) {
+        if (defined($ENV{'YARN_HOME'}) && $ENV{'YARN_HOME'} ne "") {
             print $log "YARN_HOME=" . $ENV{'YARN_HOME'} . "\n";
         }
-        if (defined($ENV{'YARN_CONF_DIR'})) {
-            print $log "=" . $ENV{'YARN_CONF_DIR'} . "\n";
+        if (defined($ENV{'YARN_CONF_DIR'}) && $ENV{'YARN_CONF_DIR'} ne "") {
+            print $log "YARN_CONF_DIR=" . $ENV{'YARN_CONF_DIR'} . "\n";
         }
 	print $log "PIG_CLASSPATH=" . $ENV{'PIG_CLASSPATH'} . "\n";
         print $log "PIG_OPTS=" .$ENV{'PIG_OPTS'} . "\n";
-	print $log "Returning Pig command " . join(" ", @pigCmd) . "\n";
     return @pigCmd;
 }
 
@@ -439,6 +438,7 @@ sub runPig
     }
 
     # Run the command
+    print $log "$0::$className::$subName INFO: Going to run pig command: @cmd\n";
 
     IPC::Run::run(\@cmd, \undef, $log, $log) or
         die "Failed running $pigfile\n";
@@ -578,7 +578,7 @@ sub generateBenchmark
                 $orighadoopyarnhome = $ENV{'YARN_HOME'};
                 $orighadoopyarnconf = $ENV{'YARN_CONF_DIR'};
 
-                if (defined($ENV{'OLD_HADOOP_HOME'})) {
+                if (defined($ENV{'OLD_HADOOP_HOME'}) && $ENV{'OLD_HADOOP_HOME'} ne "") {
                     $ENV{'HADOOP_HOME'} = $ENV{'OLD_HADOOP_HOME'};
                     $ENV{'HADOOP_CONF_DIR'} = $ENV{'PH_OLD_CLUSTER_CONF'};
                     $ENV{'HADOOP_PREFIX'} = $ENV{'OLD_HADOOP_PREFIX'};
