@@ -101,6 +101,12 @@
     </not>
   </condition>
 
+  <condition property="hcat.bin" value="">
+    <not>
+      <isset property="hcat.bin"/>
+    </not>
+  </condition>
+
   <!-- Build the UDFs -->
   <target name="pig-jar-available">
     <available property="pig.jar.available" file="${pig.jar}"/>
@@ -241,7 +247,7 @@
       <env key="PH_ROOT" value="."/>
       <env key="PH_PIG" value="${pig.dir}"/>
       <env key="PH_OLDPIG" value="${harness.old.pig}"/>
-      <env key="PH_CLUSTER_CONF" value="${harness.cluster.conf}"/>
+      <env key="HADOOP_CONF_DIR" value="${harness.cluster.conf}"/>
       <env key="PH_CLUSTER_BIN" value="${harness.cluster.bin}"/>
       <env key="PH_JYTHON_JAR" value="${jython.jar}"/>
       <env key="PH_JRUBY_JAR" value="${jruby.jar}"/>
@@ -256,6 +262,7 @@
       <env key="YARN_HOME" value="${YARN_HOME}"/>
       <env key="OLD_HADOOP_HOME" value="${OLD_HADOOP_HOME}"/>
       <env key="PH_OLD_CLUSTER_CONF" value="${PH_OLD_CLUSTER_CONF}"/>
+      <env key="HCAT_BIN" value="${hcat.bin}"/>
       <arg line="${tests.to.run}"/>
       <arg value="${test.location}/tests/cmdline.conf"/>
       <arg value="${test.location}/tests/multiquery.conf"/>
@@ -291,7 +298,7 @@
       <env key="PH_ROOT" value="."/>
       <env key="PH_PIG" value="${pig.dir}"/>
       <env key="PH_OLDPIG" value="${harness.old.pig}"/>
-      <env key="PH_CLUSTER_CONF" value="${harness.cluster.conf}"/>
+      <env key="HADOOP_CONF_DIR" value="${harness.cluster.conf}"/>
       <env key="PH_CLUSTER_BIN" value="${harness.cluster.bin}"/>
       <env key="PH_JYTHON_JAR" value="${jython.jar}"/>
       <env key="PH_JRUBY_JAR" value="${jruby.jar}"/>
