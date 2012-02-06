@@ -433,13 +433,13 @@ declaration (azaroth via gates)
 PIG-2019: smoketest-jar target has to depend on pigunit-jar to guarantee
 inclusion of test classes (cos via gates)
 
-Release 0.9.3
+Release 0.9.3 - Unreleased
 
-IMPROVEMENT
+BUG FIXES
 
-PIG-2619: HBaseStorage constructs a Scan with cacheBlocks = false (andy lindeman via jcoveney)
+PIG-2493: UNION causes casting issues (vivekp via daijy)
 
-PIG-2590: running ant tar and rpm targets on same copy of pig source results in problems (thejas)
+Release 0.9.2
 
 IMPROVEMENTS
 
