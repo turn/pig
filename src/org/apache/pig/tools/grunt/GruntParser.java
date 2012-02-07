@@ -1035,14 +1035,11 @@ public class GruntParser extends PigScriptParser {
                 int ret = executor.waitFor();
                 outPrinter.join();
                 errPrinter.join();
-                if (ret != 0 && !mInteractive) {
-                    String s = LoadFunc.join(
-                            (AbstractList<String>) Arrays.asList(cmdTokens), " ");
-                    throw new IOException("sh command '" + s
-                            + "' failed. Please check output logs for details");
+                if (ret != 0) {
+                    log.warn("Command failed with exit code = " + ret);
                 }
             } catch (Exception e) {
-                throw new IOException(e);
+                log.warn("Exception raised from Shell command " + e.getLocalizedMessage());
             }
         } else {
             log.warn("'sh' statement is ignored while processing 'explain -script' or '-check'");
