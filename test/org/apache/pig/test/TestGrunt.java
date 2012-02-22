@@ -1055,7 +1055,7 @@ public class TestGrunt extends TestCase {
             grunt.exec();
             assertFalse(new File("tempShFileToTestShCommand").exists());
 
-            strCmd = "sh bash -c 'touch TouchedFileInsideGrunt_61 | ls | grep TouchedFileInsideGrunt_61 > fileContainingTouchedFileInsideGruntShell_71'";
+            strCmd = "sh bash -c 'touch TouchedFileInsideGrunt_61 && ls | grep TouchedFileInsideGrunt_61 > fileContainingTouchedFileInsideGruntShell_71'";
             cmd = new ByteArrayInputStream(strCmd.getBytes());
             reader = new InputStreamReader(cmd);
             grunt = new Grunt(new BufferedReader(reader), context);
