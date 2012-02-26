@@ -1,20 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.apache.pig.test;
 
 import java.io.ByteArrayInputStream;
@@ -44,10 +27,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.pig.ExecType;
 import org.apache.pig.PigServer;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
@@ -61,11 +42,11 @@ public class TestRegisteredJarVisibility {
     // Actual data is not important. Reusing an existing input file.
     private static final File INPUT_FILE = new File("test/data/pigunit/top_queries_input_data.txt");
 
-    private static MiniCluster cluster;
-    private static File jarFile;
+    private MiniCluster cluster;
+    private File jarFile;
 
-    @BeforeClass()
-    public static void setUp() throws IOException {
+    @Before()
+    public void setUp() throws IOException {
 
         String testResourcesDir =  "test/resources/" + PACKAGE_NAME.replace(".", "/");
 
@@ -96,8 +77,8 @@ public class TestRegisteredJarVisibility {
         cluster = MiniCluster.buildCluster();
     }
 
-    @AfterClass()
-    public static void tearDown() {
+    @After()
+    public void tearDown() {
         cluster.shutDown();
     }
 
@@ -128,7 +109,7 @@ public class TestRegisteredJarVisibility {
         pigServer.shutdown();
     }
 
-    private static List<File> compile(File[] javaFiles) {
+    private List<File> compile(File[] javaFiles) {
         LOG.info("Compiling: " + Arrays.asList(javaFiles));
 
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
@@ -157,7 +138,7 @@ public class TestRegisteredJarVisibility {
      * @param filesToJar map of canonical class name to class file
      * @throws IOException on error
      */
-    private static void jar(Map<String, File> filesToJar) throws IOException {
+    private void jar(Map<String, File> filesToJar) throws IOException {
         LOG.info("Creating jar file containing: " + filesToJar);
 
         JarOutputStream jos = new JarOutputStream(new FileOutputStream(jarFile.getAbsolutePath()));

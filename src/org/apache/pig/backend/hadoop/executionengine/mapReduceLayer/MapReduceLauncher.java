@@ -64,6 +64,7 @@ import org.apache.pig.impl.plan.VisitorException;
 import org.apache.pig.impl.plan.CompilationMessageCollector.MessageType;
 import org.apache.pig.impl.util.ConfigurationValidator;
 import org.apache.pig.impl.util.LogUtils;
+import org.apache.pig.impl.util.UDFContext;
 import org.apache.pig.impl.util.Utils;
 import org.apache.pig.tools.pigstats.PigStats;
 import org.apache.pig.tools.pigstats.PigStatsUtil;
@@ -255,7 +256,7 @@ public class MapReduceLauncher extends Launcher{
             Thread jcThread = new Thread(jc) {
                 @Override
                 public void run() {
-                    UDFContext.setUdfContext(udfContext.clone()); //PIG-2576
+                    UDFContext.setUdfContext(udfContext);
                     super.run();
                 }
             };
