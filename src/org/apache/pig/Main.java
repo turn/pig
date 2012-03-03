@@ -368,6 +368,8 @@ static int run(String args[], PigProgressNotificationListener listener) {
             scriptState.registerListener(listener);
         }
 
+        pigContext.getProperties().setProperty("pig.cmd.args", commandLine);
+
         if(logFileName == null && !userSpecifiedLog) {
             logFileName = validateLogFile(properties.getProperty("pig.logfile"), null);
         }
