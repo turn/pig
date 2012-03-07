@@ -242,8 +242,8 @@
     <exec executable="./test_harness.pl" dir="${test.location}" failonerror="true">
       <env key="HARNESS_ROOT" value="."/>
       <env key="HADOOP_VERSION" value="${hadoopversion}"/>
-      <env key="PH_LOCAL" value="."/>
-      <env key="PH_OUT" value="."/>
+      <env key="PH_LOCAL" value="${harness.PH_LOCAL}"/>
+      <env key="PH_OUT" value="${harness.PH_OUT}"/>
       <env key="PH_ROOT" value="."/>
       <env key="PH_PIG" value="${pig.dir}"/>
       <env key="PH_OLDPIG" value="${harness.old.pig}"/>
