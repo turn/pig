@@ -410,44 +410,14 @@ public class TestPigServer {
         FileSystem fs = cluster.getFileSystem();
         fs.copyFromLocalFile(new Path(macroFile.getAbsolutePath()), new Path(macroName));
         
-        // find the absolute path for the directory so that it does not
-        // depend on configuration
-        String absPath = fs.getFileStatus(new Path(macroName)).getPath().toString();
-        
         Util.createInputFile(cluster, "testRegisterRemoteMacro_input", new String[]{"1", "2"});
         
-        pig.registerQuery("import '" + absPath + "';");
+        pig.registerQuery("import 'util.pig';");
         pig.registerQuery("a = load 'testRegisterRemoteMacro_input';");
         pig.registerQuery("b = row_count(a);");
         Iterator<Tuple> iter = pig.openIterator("b");
         
         Assert.assertTrue(((Long)iter.next().get(0))==2);
-    }
-    
-    @Test
-    public void testRegisterRemoteScript() throws Throwable {
-        String scriptName = "script.py";
-        File scriptFile = File.createTempFile("tmp", "");
-        PrintWriter pw = new PrintWriter(new FileWriter(scriptFile));
-        pw.println("@outputSchema(\"word:chararray\")\ndef helloworld():\n    return 'Hello, World'");
-        pw.close();
-        
-        FileSystem fs = cluster.getFileSystem();
-        fs.copyFromLocalFile(new Path(scriptFile.getAbsolutePath()), new Path(scriptName));
-        
-        // find the absolute path for the directory so that it does not
-        // depend on configuration
-        String absPath = fs.getFileStatus(new Path(scriptName)).getPath().toString();
-        
-        Util.createInputFile(cluster, "testRegisterRemoteScript_input", new String[]{"1", "2"});
-        pig.registerCode(absPath, "jython", "pig");
-        pig.registerQuery("a = load 'testRegisterRemoteScript_input';");
-        pig.registerQuery("b = foreach a generate pig.helloworld($0);");
-        Iterator<Tuple> iter = pig.openIterator("b");
-        
-        Assert.assertTrue(iter.next().get(0).equals("Hello, World"));
-        Assert.assertTrue(iter.next().get(0).equals("Hello, World"));
-        Assert.assertFalse(iter.hasNext());
     }
 
     @Test
