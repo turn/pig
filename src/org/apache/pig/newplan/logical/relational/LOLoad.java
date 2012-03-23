@@ -283,4 +283,12 @@ public class LOLoad extends LogicalRelationalOperator {
     public LogicalSchema getScriptSchema() {
         return scriptSchema;
     }
+
+    public long getLimit() {
+        return limit;
+    }
+
+    public void setLimit(long limit) {
+        this.limit = limit;
+    }
 }
