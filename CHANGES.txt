@@ -90,7 +90,7 @@ PIG-2380: Expose version information more cleanly (jcoveney via azaroth)
 
 PIG-2311: STRSPLIT needs to allow bytearray arguments (xuting via olgan)
 
-PIG-2365: Current TOP implementation needlessly results in a null bag name (jcoveney via dvryaboy) 
+PIG-2365: Current TOP implementation needlessly results in a null bag name (jcoveney via dvryaboy)
 
 PIG-2151: Add annotation to specify output schema in Java UDFs (dvryaboy)
 
@@ -105,6 +105,8 @@ PIG-2337: Provide UDF with input schema (xutingz via daijy)
 OPTIMIZATIONS
 
 BUG FIXES
+
+PIG-2618: e2e local fails to build
 
 PIG-2608: Typo in PigStorage documentation for source tagging (prkommireddi via daijy)
 
@@ -126,7 +128,7 @@ PIG-2504: Incorrect sample provided for REGEX_EXTRACT (prkommireddi via daijy)
 
 PIG-2502: Make "hcat.bin" configurable in e2e test (daijy)
 
-PIG-2501: Changes needed to contrib/piggybank/java/build.xml in order to build piggybank.jar with Hadoop 0.23 
+PIG-2501: Changes needed to contrib/piggybank/java/build.xml in order to build piggybank.jar with Hadoop 0.23
 (ekoontz via daijy)
 
 PIG-2499: Pig TestGrunt.testShellCommand occasionally fails (tomwhite via daijy)
@@ -224,9 +226,9 @@ PIG-2189: e2e test harness needs to use Pig as a source of truth (gates via daij
 
 PIG-1904: Default split destination (azaroth via thejas)
 
-PIG-2143: Make PigStorage optionally store schema; improve docs. (dvryaboy) 
+PIG-2143: Make PigStorage optionally store schema; improve docs. (dvryaboy)
 
-PIG-1973: UDFContext.getUDFContext usage of ThreadLocal pattern 
+PIG-1973: UDFContext.getUDFContext usage of ThreadLocal pattern
  is not typical (woody via thejas)
 
 PIG-2053: PigInputFormat uses class.isAssignableFrom() where
@@ -346,77 +348,13 @@ PIG-2119: DuplicateForEachColumnRewrite makes assumptions about the position of 
 
 PIG-2290: TOBAG wraps tuple parameters in another tuple (ryan.hoegg via thejas)
 
-PIG-2202: AvroStorage doesn't work with Avro 1.5.1 (billgraham via gates)
-
-PIG-2309: Keyword 'NOT' is wrongly treated as a UDF in split statement (vivekp via thejas)
-
-PIG-2612: e2e harness: should not require PH_OLD_CLUSTER_CONF (thw via daijy)
-
-PIG-2505: AvroStorage won't read any file not ending in .avro (russell.jurney via daijy)
-
-PIG-2585: Enable ignored e2e test cases (daijy)
-
-PIG-2563: IndexOutOfBoundsException: while projecting fields from a bag (daijy)
-
-PIG-2411: AvroStorage UDF in PiggyBank fails to STORE a bag of single-field tuples as Avro arrays (russell.jurney via daijy)
-
-PIG-2565: Support IMPORT for macros stored in S3 Buckets (daijy)
-
-PIG-2570: LimitOptimizer fails with dynamic LIMIT argument (daijy)
-
-PIG-2543: PigStats.isSuccessful returns false if embedded pig script has sh commands (daijy)
-
-PIG-2509: Util.getSchemaFromString fails with java.lang.NullPointerException when a tuple in a bag has no name (as when used in MongoStorage UDF) (jcoveney via daijy)
-
-PIG-2559: Embedded pig in python; invoking sys.exit(0) causes script failure (vivekp via daijy)
-
-PIG-2489: Input Path Globbing{} not working with PigStorageSchema or PigStorage('\t', '-schema') (daijy)
-
-PIG-2484: Fix several e2e test failures/aborts for 23 (daijy)
-
-PIG-2400: Document has based aggregation support (chandec via daijy)
-
-PIG-2444: Remove the Zebra *.xml documentation files from the TRUNK and Branch-10 (chandec via daijy)
-
-PIG-2430: An EvalFunc which overrides getArgToFuncMapping with FuncSpec
- with constructor arguments is not properly instantiated with said arguments (jcoveney via thejas)
-
-PIG-2457: JsonLoaderStorage tests is broken for e2e (daijy)
-
-PIG-2426: ProgressableReporter.progress(String msg) is an empty function (vivekp via daijy)
-
-PIG-2363: _logs for streaming commands bug in new parser (vivekp via daijy)
-
-PIG-2425: Aggregate Warning does not work as expected on Embedding Pig in Java 0.9.1 (prkommireddi via thejas)
-
-PIG-2331: BinStorage in LOAD statement failing when input has curly braces (xutingz via thejas)
-
-PIG-2391: Bzip_2 test is broken (xutingz via daijy)
-
-PIG-2358: JobStats.getHadoopCounters() is never set and always returns null (xutingz via daijy)
-
-PIG-2384: PIG-2384: Generic Invokers should use PigContext to resolve classes (dvryaboy)
-
-PIG-2184: Not able to provide positional reference to macro invocations (xutingz via daijy)
-
-PIG-2209: JsonMetadata fails to find schema for glob paths (daijy)
-
-PIG-2352: e2e test harness' use of environment variables causes unintended effects between tests (gates)
-
-PIG-2165: Need a way to deal with params and param_file in embedded pig in python (daijy)
-
-PIG-2313: NPE in ILLUSTRATE trying to get StatusReporter in STORE (daijy)
-
-PIG-2335: bin/pig does not work with bash 3.0 (azaroth)
-
-PIG-2275: NullPointerException from ILLUSTRATE (daijy)
-
-PIG-2290: TOBAG wraps tuple parameters in another tuple (ryan.hoegg via thejas)
-
 PIG-2288: Pig 0.9 error message not useful as compared to 0.8 in case
  of group by (vivekp via thejas)
 
 PIG-2309: Keyword 'NOT' is wrongly treated as a UDF in split statement (vivekp via thejas)
+
+PIG-2307: Jetty version should be updated in .eclipse.templates/.classpath,
+ pig-template.xml and pig.pom as well (zjshen via daijy)
 
 PIG-2273: Pig.compileFromFile in embedded python fails when pig script starts with a comment (ddaniels888 via gates)
 
@@ -472,6 +410,11 @@ PIG-2147: Support nested tags for XMLLoader (vivekp via daijy)
 PIG-2110: NullPointerException in piggybank.evaluation.util.apachelogparser.SearchTermExtractor (dale_jin via daijy)
 
 PIG-2144: ClassCastException when using IsEmpty(DIFF()) (thejas)
+
+PIG-2139: LogicalExpressionSimplifier optimizer rule should check if udf is
+ deterministic while checking if they are equal (thejas)
+
+PIG-2137: SAMPLE should not be pushed above DISTINCT (dvryaboy and thejas)
 
 PIG-2136: Implementation of Sample should use LessThanExpression
  instead of LessThanEqualExpression (azaroth via thejas)
