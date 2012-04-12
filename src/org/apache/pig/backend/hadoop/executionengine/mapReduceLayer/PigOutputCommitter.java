@@ -174,7 +174,7 @@ public class PigOutputCommitter extends OutputCommitter {
             if (mapCommitter.first!=null) {
                 JobContext updatedContext = setUpContext(context,
                         mapCommitter.second);
-                storeCleanup(mapCommitter.second, updatedContext.getConfiguration());
+                // PIG-2642 promote files before calling storeCleanup/storeSchema 
                 try {
                     // Use reflection, 20.2 does not have such method
                     Method m = mapCommitter.first.getClass().getMethod("commitJob", JobContext.class);
@@ -183,6 +183,7 @@ public class PigOutputCommitter extends OutputCommitter {
                 } catch (Exception e) {
                     throw new IOException(e);
                 }
+                storeCleanup(mapCommitter.second, updatedContext.getConfiguration());
             }
         }
         for (Pair<OutputCommitter, POStore> reduceCommitter :
@@ -190,7 +191,7 @@ public class PigOutputCommitter extends OutputCommitter {
             if (reduceCommitter.first!=null) {
                 JobContext updatedContext = setUpContext(context,
                         reduceCommitter.second);
-                storeCleanup(reduceCommitter.second, updatedContext.getConfiguration());
+                // PIG-2642 promote files before calling storeCleanup/storeSchema 
                 try {
                     // Use reflection, 20.2 does not have such method
                     Method m = reduceCommitter.first.getClass().getMethod("commitJob", JobContext.class);
@@ -199,6 +200,7 @@ public class PigOutputCommitter extends OutputCommitter {
                 } catch (Exception e) {
                     throw new IOException(e);
                 }
+                storeCleanup(reduceCommitter.second, updatedContext.getConfiguration());
             }
         }
     }
