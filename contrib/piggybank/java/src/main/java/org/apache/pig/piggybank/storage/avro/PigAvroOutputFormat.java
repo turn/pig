@@ -44,6 +44,12 @@ public class PigAvroOutputFormat extends FileOutputFormat<NullWritable, Object> 
     /** The default deflate level. */
     public static final int DEFAULT_DEFLATE_LEVEL = 1;
 
+    /** The configuration key for the Avro codec. */
+    public static final String OUTPUT_CODEC = "avro.output.codec";
+    
+    /** The deflate codec */
+    public static final String DEFLATE_CODEC = "deflate";
+
     /* avro schema of output data */
     private Schema schema = null;
 
@@ -82,8 +88,12 @@ public class PigAvroOutputFormat extends FileOutputFormat<NullWritable, Object> 
         DataFileWriter<Object> writer = new DataFileWriter<Object>(new PigAvroDatumWriter(schema));
 
         if (FileOutputFormat.getCompressOutput(context)) {
-            int level = context.getConfiguration().getInt(DEFLATE_LEVEL_KEY, DEFAULT_DEFLATE_LEVEL);
-            writer.setCodec(CodecFactory.deflateCodec(level));
+          int level = conf.getInt(DEFLATE_LEVEL_KEY, DEFAULT_DEFLATE_LEVEL);
+          String codecName = conf.get(OUTPUT_CODEC, DEFLATE_CODEC);
+          CodecFactory factory = codecName.equals(DEFLATE_CODEC)
+            ? CodecFactory.deflateCodec(level)
+            : CodecFactory.fromString(codecName);
+          writer.setCodec(factory);
         }
 
         Path path = getDefaultWorkFile(context, EXT);

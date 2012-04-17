@@ -35,6 +35,7 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.Properties;
 import java.util.Set;
 
 import static junit.framework.Assert.assertEquals;
@@ -137,6 +138,30 @@ public class TestAvroStorage {
     }
 
     @Test
+    public void testArrayWithSnappyCompression() throws IOException {
+        String output= outbasedir + "testArrayWithSnappyCompression";
+        String expected = basedir + "expected_testArrayDefault.avro";
+      
+        deleteDirectory(new File(output));
+      
+        Properties properties = new Properties();
+        properties.setProperty("mapred.output.compress", "true");
+        properties.setProperty("mapred.output.compression.codec", "org.apache.hadoop.io.compress.SnappyCodec");
+        properties.setProperty("avro.output.codec", "snappy");
+        PigServer pigServer = new PigServer(ExecType.LOCAL, properties);
+        pigServer.setBatchOn();
+        String [] queries = {
+           " in = LOAD '" + testArrayFile + " ' USING org.apache.pig.piggybank.storage.avro.AvroStorage ();",
+           " STORE in INTO '" + output + "' USING org.apache.pig.piggybank.storage.avro.AvroStorage ();"
+            };
+        for (String query: queries){
+            pigServer.registerQuery(query);
+        }
+        pigServer.executeBatch();
+        verifyResults(output, expected, "snappy");
+    }
+
+    @Test
     public void testRecordWithSplit() throws IOException {
         String output1= outbasedir + "testRecordSplit1";
         String output2= outbasedir + "testRecordSplit2";
@@ -207,8 +232,12 @@ public class TestAvroStorage {
         }
         pigServerLocal.executeBatch();
     }
-    
+
     private void verifyResults(String outPath, String expectedOutpath) throws IOException {
+        verifyResults(outPath, expectedOutpath, null);
+    }
+
+    private void verifyResults(String outPath, String expectedOutpath, String expectedCodec) throws IOException {
         FileSystem fs = FileSystem.getLocal(new Configuration()) ; 
         
         /* read in expected results*/
@@ -233,6 +262,7 @@ public class TestAvroStorage {
             
             DataFileStream<Object> in = new DataFileStream<Object>(
                                             fs.open(filePath), reader);
+            assertEquals("codec", expectedCodec, in.getMetaString("avro.codec"));
             int count = 0;
             while (in.hasNext()) {
                 Object obj = in.next();
