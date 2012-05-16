@@ -1135,4 +1135,11 @@ public class Util {
             return true;
         return false;
     }
+
+    public static boolean isHadoop2_0() {
+        String version = org.apache.hadoop.util.VersionInfo.getVersion();
+        if (version.matches("\\b2\\.0\\..+"))
+            return true;
+        return false;
+    }
 }
