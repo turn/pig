@@ -34,6 +34,7 @@ import java.io.StringWriter;
 import java.util.AbstractList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
