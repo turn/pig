@@ -192,8 +192,16 @@
     </condition>
 
     <property name="src.shims.dir" value="${basedir}/shims/src/hadoop${hadoopversion}" />
-    <property name="src.shims.test.dir" value="${basedir}/shims/test/hadoop${hadoopversion}" />
-
+    <if>
+        <equals arg1="${mr1.test}" arg2="mr1"/>
+        <then>
+            <property name="src.shims.test.dir" value="${basedir}/shims/test/hadoop20" />
+        </then>
+        <else>
+            <property name="src.shims.test.dir" value="${basedir}/shims/test/hadoop${hadoopversion}" />
+        </else>
+    </if>
+    
     <property name="hadoop.jar" value="hadoop-core-${hadoop-core.version}.jar" />
 	<property name="asfrepo" value="https://repository.apache.org"/>
 	<property name="asfsnapshotrepo" value="${asfrepo}/content/repositories/snapshots"/>
@@ -259,12 +267,26 @@
 	<path refid="javadoc.classpath"/>	
     </path> 
 
-    <path id="test.classpath">
-        <pathelement location="${build.classes}"/>
-        <pathelement location="${test.src.dir}"/>
-        <pathelement location="contrib/piggybank/java/piggybank.jar"/>
-        <path refid="classpath"/>
-    </path>
+    <if>
+        <equals arg1="${mr1.test}" arg2="mr1"/>
+        <then>
+            <path id="test.classpath">
+                <pathelement location="${build.classes}"/>
+                <pathelement location="${test.src.dir}"/>
+                <pathelement location="contrib/piggybank/java/piggybank.jar"/>
+                <path refid="classpath"/>
+                <fileset dir="${ivy.lib.dir}" includes="hadoop*.jar" />
+            </path>
+        </then>
+        <else>
+            <path id="test.classpath">
+                <pathelement location="${build.classes}"/>
+                <pathelement location="${test.src.dir}"/>
+                <pathelement location="contrib/piggybank/java/piggybank.jar"/>
+                <path refid="classpath"/>
+            </path>
+        </else>
+    </if>
 
     <target name="init" depends="ivy-compile" >
         <mkdir dir="${src.gen.query.parser.dir}" />
@@ -421,7 +443,7 @@
 
     </target>
 
-    <target name="compile-test" depends="compile, ivy-test">
+    <target name="compile-test" depends="compile, ivy-test, ivy-mr1-test">
         <echo>*** Building Test Sources ***</echo>
         <echo>*** To compile with all warnings enabled, supply -Dall.warnings=1 on command line ***</echo>
         <echo>*** If all.warnings property is supplied, compile-sources-all-warnings target will be executed ***</echo>
@@ -756,6 +778,36 @@
         <macro-test-runner test.file="${test.smoke.file}" />
     </target>
 
+    <if>
+      <equals arg1="${mr1.test}" arg2="mr1"/>
+      <then>
+        <path id="junit.test.classpath">
+            <pathelement location="${output.jarfile.withouthadoop}" />
+            <pathelement location="${test.build.classes}" />
+            <pathelement location="${junit.hadoop.conf}" />
+            <pathelement location="." />
+            <pathelement path="${clover.jar}"/>
+            <pathelement location="${build.classes}"/>
+            <pathelement location="${test.src.dir}"/>
+            <fileset dir="${ivy.lib.dir}">
+                <exclude name="hadoop-mapreduce*.jar" />
+                <exclude name="hadoop-yarn*.jar" />
+            </fileset>
+            <path refid="mr1.test.classpath"/>
+        </path>
+      </then>
+      <else>
+        <path id="junit.test.classpath">
+            <pathelement location="${output.jarfile.withouthadoop}" />
+            <pathelement location="${test.build.classes}" />
+            <pathelement location="${junit.hadoop.conf}" />
+            <pathelement location="." />
+            <pathelement path="${clover.jar}"/>
+            <path refid="test.classpath"/>
+	     </path>
+      </else>
+    </if>
+
     <macrodef name="macro-test-runner">
       <attribute name="test.file" />
       <sequential>
@@ -772,12 +824,7 @@
             			<sysproperty key="hod.param" value="${hod.param}"/> -->
             <sysproperty key="hadoop.log.dir" value="${test.log.dir}"/>
             <classpath>
-                <pathelement location="${output.jarfile.withouthadoop}" />
-                <pathelement location="${test.build.classes}" />
-                <pathelement location="${junit.hadoop.conf}" />
-                <pathelement location="." />
-                <pathelement path="${clover.jar}"/>
-                <path refid="test.classpath"/>
+                <path refid="junit.test.classpath"/>
             </classpath>
             <formatter type="${test.junit.output.format}" />
 
@@ -1508,6 +1555,13 @@
        <ivy:resolve settingsRef="${ant.project.name}.ivy.settings" conf="test"/>
        <ivy:retrieve settingsRef="${ant.project.name}.ivy.settings"
                  pattern="${build.ivy.lib.dir}/${ivy.artifact.retrieve.pattern}" conf="test"/>
+     </target>
+
+     <target name="ivy-mr1-test" depends="ivy-init" description="Resolve, Retrieve Ivy-managed artifacts for test configuration" if="mr1.test">
+       <ivy:resolve settingsRef="${ant.project.name}.ivy.settings" conf="test"/>
+       <ivy:retrieve settingsRef="${ant.project.name}.ivy.settings"
+                 pattern="${build.ivy.lib.dir}/mr1/${ivy.artifact.retrieve.pattern}" conf="mr1.test"/>
+       <ivy:cachepath pathid="mr1.test.classpath" conf="mr1.test" type="jar,test-jar"/>
      </target>
 
      <target name="ivy-javadoc" depends="ivy-init" description="Resolve, Retrieve Ivy-managed artifacts for javadoc configuration">

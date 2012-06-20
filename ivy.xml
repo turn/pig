@@ -40,6 +40,7 @@
     <conf name="buildJar" extends="compile,test" visibility="private"/>
     <conf name="hadoop20" visibility="private"/>
     <conf name="hadoop23" visibility="private"/>
+    <conf name="mr1.test" visibility="private"/>
   </configurations>
   <publications>
     <!--get the artifact from our module name-->
@@ -107,7 +108,7 @@
     <dependency org="com.sun.jersey" name="jersey-core" rev="${jersey-core.version}"
       conf="hadoop20->default"/>
     <dependency org="org.apache.hadoop" name="hadoop-core" rev="${hadoop-core.version}"
-      conf="hadoop20->default">
+      conf="hadoop20->default; mr1.test->default">
       <exclude org="org.slf4j" module="slf4j"/>
       <exclude org="org.slf4j" module="slf4j-api"/>
       <exclude org="org.slf4j" module="log4j12"/>
@@ -118,7 +119,7 @@
     </dependency>
 
     <dependency org="org.apache.hadoop" name="hadoop-test" rev="${hadoop-test.version}"
-      conf="hadoop20->default">
+      conf="hadoop20->default; mr1.test->default">
       <exclude org="org.slf4j" module="slf4j"/>
       <exclude org="org.slf4j" module="slf4j-api"/>
       <exclude org="org.slf4j" module="log4j12"/>
@@ -274,8 +275,17 @@
       conf="compile->master"/>
     <dependency org="commons-logging" name="commons-logging" rev="${commons-logging.version}"
       conf="compile->master;checkstyle->master"/>
-     <dependency org="org.slf4j" name="slf4j-log4j12" rev="${slf4j-log4j12.version}"
+    <dependency org="org.slf4j" name="slf4j-log4j12" rev="${slf4j-log4j12.version}"
       conf="compile->master;test->master"/>
+    <dependency org="org.slf4j" name="slf4j-log4j12" rev="${mr1-slf4j-log4j12.version}"
+      conf="mr1.test->master">
+        <artifact name="slf4j-log4j12" type="jar" />
+    </dependency>
+    <dependency org="org.slf4j" name="slf4j-api" rev="${mr1-slf4j-api.version}"
+      conf="mr1.test->master">
+        <artifact name="slf4j-api" type="jar" />
+    </dependency>
+
     <dependency org="commons-cli" name="commons-cli" rev="${commons-cli.version}"
       conf="compile->master;checkstyle->master"/>
     
