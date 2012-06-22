@@ -994,6 +994,9 @@
         <mkdir dir="${tar.dist.dir}/docs/api" />
         <mkdir dir="${tar.dist.dir}/docs/jdiff"/>
         <mkdir dir="${tar.dist.dir}/license" />
+        <copy todir="${tar.dist.dir}/cloudera">
+            <fileset dir="cloudera" />
+        </copy>
 
         <copy todir="${tar.dist.dir}/lib" includeEmptyDirs="false">
             <fileset dir="${lib.dir}"/>
