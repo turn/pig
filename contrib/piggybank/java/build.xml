@@ -16,6 +16,7 @@
 -->
 
 <project basedir="." default="jar" name="pigudf">
+    <property file="../../../build.properties" />
     <!-- javac properties -->
     <property name="javac.debug" value="on" />
     <property name="javac.level" value="source,lines,vars"/>
@@ -59,6 +60,7 @@
     <property name="junit.hadoop.conf" value="${user.home}/pigtest/conf/"/>
 
     <path id="pigudf.classpath">
+        <pathelement location="../../../build/classes"/>
         <pathelement location="${build.classes}"/>
         <pathelement location="${pigjar-withouthadoop}"/>
         <pathelement location="${pigtest}"/>
