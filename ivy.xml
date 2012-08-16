@@ -349,6 +349,9 @@
       <exclude org="asm" module="asm"/>
       <exclude org="org.mortbay.jetty" module="*" />
     </dependency>
+
+    <dependency org="com.github.stephenc.high-scale-lib" name="high-scale-lib" rev="${high-scale-lib.version}" conf="test->default"/>
+
     <!-- for piggybank -->
     <dependency org="hsqldb" name="hsqldb" rev="${hsqldb.version}"
       conf="test->default" />
