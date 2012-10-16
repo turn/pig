@@ -107,21 +107,10 @@ public class DistinctDataBag extends DefaultAbstractBag {
                 mSize++;
             }
         }
+        markSpillableIfNecessary();
     }
 
     @Override
-    public void addAll(DataBag b) {
-        synchronized (mContents) {
-            Iterator<Tuple> i = b.iterator();
-            while (i.hasNext()) {
-                if (mContents.add(i.next())) {
-                    mSize++;
-                }
-            }
-        }
-    }
-
-
     public long spill() {
         // Make sure we have something to spill.  Don't create empty
         // files, as that will make a mess.

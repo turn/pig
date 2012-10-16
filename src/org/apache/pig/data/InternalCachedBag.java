@@ -26,7 +26,6 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
@@ -112,20 +111,6 @@ public class InternalCachedBag extends SelfSpillBag {
         incSpillCount(PigCounters.PROACTIVE_SPILL_COUNT_RECS, numTuplesSpilled);
         numTuplesSpilled = 0;
     }
-
-    public void addAll(DataBag b) {
-    	Iterator<Tuple> iter = b.iterator();
-    	while(iter.hasNext()) {
-    		add(iter.next());
-    	}
-    }
-
-    public void addAll(Collection<Tuple> c) {
-    	Iterator<Tuple> iter = c.iterator();
-    	while(iter.hasNext()) {
-    		add(iter.next());
-    	}
-    }
     
     private void addDone() {
         if(out != null) {
@@ -140,6 +125,7 @@ public class InternalCachedBag extends SelfSpillBag {
         if(numTuplesSpilled > 0)
             updateSpillRecCounter();
         addDone = true;
+        markSpillableIfNecessary();
     }
 
     public void clear() {
