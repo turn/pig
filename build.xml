@@ -977,6 +977,7 @@
             <jvmarg line="${debugArgs}"/>
             <sysproperty key="java.security.krb5.realm" value="" />
             <sysproperty key="java.security.krb5.kdc" value="" />
+            <env key="MALLOC_ARENA_MAX" value="4"/>
             <classpath>
                 <path refid="junit.test.classpath"/>
             </classpath>
