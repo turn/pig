@@ -20,6 +20,32 @@
 	xmlns:ivy="antlib:org.apache.ivy.ant">
     <!-- Load all the default properties, and any the user wants    -->
     <!-- to contribute (without having to type -D or edit this file -->
+    <!-- load ant-contrib tasks to get the "if" task. -->
+    <taskdef resource="net/sf/antcontrib/antcontrib.properties">
+        <classpath>
+            <pathelement location="${basedir}/cloudera/maven-packaging/lib/ant-contrib-1.0b3.jar"/>
+        </classpath>
+    </taskdef>
+
+    <!-- Initializes ivy/libraries.properties and build.properties with CDH versions -->
+    <if>
+        <and>
+            <not>
+                <isset property="cdh.maven" />
+            </not>
+            <not>
+                <available file="${basedir}/build.properties" />
+            </not>
+        </and>
+        <then>
+            <exec  executable="mvn" dir="${basedir}" failonerror="true">
+                <arg value="-f" />
+                <arg value="cloudera-pom.xml" />
+                <arg value="process-resources"/>
+            </exec>
+        </then>
+    </if>
+
     <property file="${user.home}/build.properties" />
     <property file="${basedir}/build.properties" />
 
@@ -30,7 +56,7 @@
     <property name="pig.pom" value="${basedir}/ivy/pig.pom" />
     <property name="pigsmoke.pom" value="${basedir}/ivy/pigsmoke.pom" />
     <property name="pigunit.pom" value="${basedir}/ivy/pigunit.pom" />
-    <property name="pig.version" value="0.11.1" />
+    <property name="pig.version" value="0.11.0-cdh4.3.0" />
     <property name="pig.version.suffix" value="-SNAPSHOT" />
     <property name="version" value="${pig.version}${pig.version.suffix}" />
     <property name="final.name" value="${name}-${version}" />
@@ -175,8 +201,16 @@
     </condition>
 
     <property name="src.shims.dir" value="${basedir}/shims/src/hadoop${hadoopversion}" />
-    <property name="src.shims.test.dir" value="${basedir}/shims/test/hadoop${hadoopversion}" />
-
+    <if>
+        <equals arg1="${mr1.test}" arg2="mr1"/>
+        <then>
+            <property name="src.shims.test.dir" value="${basedir}/shims/test/hadoop20" />
+        </then>
+        <else>
+            <property name="src.shims.test.dir" value="${basedir}/shims/test/hadoop${hadoopversion}" />
+        </else>
+    </if>
+    
     <property name="hadoop.jar" value="hadoop-core-${hadoop-core.version}.jar" />
 	<property name="asfrepo" value="https://repository.apache.org"/>
 	<property name="asfsnapshotrepo" value="${asfrepo}/content/repositories/snapshots"/>
@@ -305,14 +339,26 @@
 	    <path refid="javadoc.classpath"/>	
     </path> 
 
-    <path id="test.classpath">
-        <!-- need to put this first, otherwise junit-3 testcases can break -->
-        <pathelement location="${ivy.lib.dir}/junit-3.8.1.jar"/>
-        <pathelement location="${build.classes}"/>
-        <pathelement location="${test.src.dir}"/>
-        <pathelement location="contrib/piggybank/java/piggybank.jar"/>
-        <path refid="classpath"/>
-    </path>
+    <if>
+        <equals arg1="${mr1.test}" arg2="mr1"/>
+        <then>
+            <path id="test.classpath">
+                <pathelement location="${build.classes}"/>
+                <pathelement location="${test.src.dir}"/>
+                <pathelement location="contrib/piggybank/java/piggybank.jar"/>
+                <path refid="classpath"/>
+                <fileset dir="${ivy.lib.dir}" includes="hadoop*.jar" />
+            </path>
+        </then>
+        <else>
+            <path id="test.classpath">
+                <pathelement location="${build.classes}"/>
+                <pathelement location="${test.src.dir}"/>
+                <pathelement location="contrib/piggybank/java/piggybank.jar"/>
+                <path refid="classpath"/>
+            </path>
+        </else>
+    </if>
 
     <target name="init" depends="ivy-compile" >
         <mkdir dir="${src.gen.query.parser.dir}" />
@@ -488,7 +534,7 @@
 
     </target>
 
-    <target name="compile-test" depends="compile, ivy-test">
+    <target name="compile-test" depends="compile, ivy-test, ivy-mr1-test">
         <echo>*** Building Test Sources ***</echo>
         <echo>*** To compile with all warnings enabled, supply -Dall.warnings=1 on command line ***</echo>
         <echo>*** If all.warnings property is supplied, compile-sources-all-warnings target will be executed ***</echo>
@@ -884,6 +930,36 @@
         <property name="debugArgs" value=""/>
     </target>
 
+    <if>
+      <equals arg1="${mr1.test}" arg2="mr1"/>
+      <then>
+        <path id="junit.test.classpath">
+            <pathelement location="${output.jarfile.withouthadoop}" />
+            <pathelement location="${test.build.classes}" />
+            <pathelement location="${junit.hadoop.conf}" />
+            <pathelement location="." />
+            <pathelement path="${clover.jar}"/>
+            <pathelement location="${build.classes}"/>
+            <pathelement location="${test.src.dir}"/>
+            <fileset dir="${ivy.lib.dir}">
+                <exclude name="hadoop-mapreduce*.jar" />
+                <exclude name="hadoop-yarn*.jar" />
+            </fileset>
+            <path refid="mr1.test.classpath"/>
+        </path>
+      </then>
+      <else>
+        <path id="junit.test.classpath">
+            <pathelement location="${output.jarfile.withouthadoop}" />
+            <pathelement location="${test.build.classes}" />
+            <pathelement location="${junit.hadoop.conf}" />
+            <pathelement location="." />
+            <pathelement path="${clover.jar}"/>
+            <path refid="test.classpath"/>
+	     </path>
+      </else>
+    </if>
+
     <macrodef name="macro-test-runner">
       <attribute name="test.file" />
       <sequential>
@@ -902,11 +978,7 @@
             <sysproperty key="java.security.krb5.realm" value="" />
             <sysproperty key="java.security.krb5.kdc" value="" />
             <classpath>
-                <pathelement location="${output.jarfile.withouthadoop}" />
-                <pathelement location="${test.build.classes}" />
-                <pathelement location="." />
-		<pathelement path="${clover.jar}"/>
-                <path refid="test.classpath"/>
+                <path refid="junit.test.classpath"/>
             </classpath>
             <formatter type="${test.junit.output.format}" />
 
@@ -1008,6 +1080,9 @@
         <mkdir dir="${rpm.dist.dir}/share/doc/pig/api" />
         <mkdir dir="${rpm.dist.dir}/share/doc/pig/jdiff"/>
         <mkdir dir="${rpm.dist.dir}/share/doc/pig/license" />
+        <copy todir="${rpm.dist.dir}/cloudera">
+            <fileset dir="cloudera" />
+        </copy>
 
         <copy todir="${rpm.dist.dir}/share/pig/lib">
             <fileset dir="${ivy.lib.dir}" includes="jython*.jar"/>
@@ -1075,6 +1150,9 @@
         <mkdir dir="${tar.dist.dir}/docs/api" />
         <mkdir dir="${tar.dist.dir}/docs/jdiff"/>
         <mkdir dir="${tar.dist.dir}/license" />
+        <copy todir="${tar.dist.dir}/cloudera">
+            <fileset dir="cloudera" />
+        </copy>
 
         <copy todir="${tar.dist.dir}/lib" includeEmptyDirs="false">
             <fileset dir="${lib.dir}"/>
@@ -1089,6 +1167,8 @@
         <copy file="${output.jarfile.backcompat}" tofile="${tar.dist.dir}/${final.name}.jar" />
 
         <copy todir="${tar.dist.dir}/" file="ivy.xml" />
+        <copy todir="${tar.dist.dir}/" file="cloudera-pom.xml" />
+        <copy todir="${tar.dist.dir}/" file="build.properties" />
 
         <copy todir="${tar.dist.dir}/ivy">
             <fileset dir="ivy" />
@@ -1338,28 +1418,9 @@
           uri="urn:maven-artifact-ant"
           classpathref="mvn-ant-task.classpath"/>
     </target>
-    <target name="mvn-install" depends="mvn-taskdef,jar, set-version, source-jar,
-      javadoc-jar, pigunit-jar, smoketests-jar"
-         description="To install pig to local filesystem's m2 cache">
-         <artifact:pom file="${pig.pom}" id="pig"/>
-          <artifact:install file="${output.jarfile.core}">
-               <pom refid="pig"/>
-           <attach file="${output.jarfile.sources}" classifier="sources" />
-           <attach file="${output.jarfile.javadoc}" classifier="javadoc" />
-          </artifact:install>
-         <artifact:pom file="${pigunit.pom}" id="pigunit"/>
-          <artifact:install file="${pigunit.jarfile}">
-               <pom refid="pigunit"/>
-           </artifact:install>
-         <artifact:pom file="${pigsmoke.pom}" id="pigsmoke"/>
-          <artifact:install file="${smoke.tests.jarfile}">
-               <pom refid="pigsmoke"/>
-         </artifact:install>
-    </target>
-
-    <target name="mvn-deploy" depends="mvn-taskdef, mvn-jar, source-jar, javadoc-jar,
-         smoketests-jar, pigunit-jar, set-version, signanddeploy, simpledeploy"
-         description="To deploy pig jar to apache snapshot's repository">
+    <target name="mvn-install"
+            description="To install pig to local filesystem's m2 cache">
+      <echo>To install Cloudera pig jar into Maven cache, run "mvn -f cloudera-pom.xml install -Dmvnrepo=${mvnrepo}" from this directory.</echo>
     </target>
 
      <target name="signanddeploy" if="staging" depends="sign">
@@ -1712,6 +1773,13 @@
      <target name="ivy-test" depends="ivy-resolve" description="Retrieve Ivy-managed artifacts for test configuration">
        <ivy:retrieve settingsRef="${ant.project.name}.ivy.settings"
                  pattern="${build.ivy.lib.dir}/${ivy.artifact.retrieve.pattern}" conf="test"/>
+     </target>
+
+     <target name="ivy-mr1-test" depends="ivy-init" description="Resolve, Retrieve Ivy-managed artifacts for test configuration" if="mr1.test">
+       <ivy:resolve settingsRef="${ant.project.name}.ivy.settings" conf="test"/>
+       <ivy:retrieve settingsRef="${ant.project.name}.ivy.settings"
+                 pattern="${build.ivy.lib.dir}/mr1/${ivy.artifact.retrieve.pattern}" conf="mr1.test"/>
+       <ivy:cachepath pathid="mr1.test.classpath" conf="mr1.test" type="jar,test-jar"/>
      </target>
 
      <target name="ivy-javadoc" depends="ivy-resolve" description="Retrieve Ivy-managed artifacts for javadoc configuration">
