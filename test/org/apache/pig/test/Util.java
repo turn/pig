@@ -571,9 +571,16 @@ public class Util {
 	 */
 	static public void copyFromLocalToCluster(MiniCluster cluster, String localFileName, String fileNameOnCluster) throws IOException {
         PigServer ps = new PigServer(ExecType.MAPREDUCE, cluster.getProperties());
-        String script = getMkDirCommandForHadoop2_0(fileNameOnCluster) + "fs -put " + localFileName + " " + fileNameOnCluster;
+        String script = "fs -put " + localFileName + " " + fileNameOnCluster;
 
-	    GruntParser parser = new GruntParser(new StringReader(script));
+        FileSystem fs = cluster.getFileSystem();
+        Path clusterFile = new Path(fileNameOnCluster);
+        Path clusterFileParent = clusterFile.getParent();
+        if (!fs.exists(clusterFileParent)) {
+            fs.mkdirs(clusterFileParent);
+        }
+
+        GruntParser parser = new GruntParser(new StringReader(script));
         parser.setInteractive(false);
         parser.setParams(ps);
         try {
