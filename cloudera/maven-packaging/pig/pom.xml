@@ -272,7 +272,7 @@
             <id>compile</id>
             <configuration>
               <target>
-                <copy file="${basedir}/../../../build/pig-${project.version}-withouthadoop.jar"
+                <copy file="${basedir}/../../../build/pig-${project.version}.jar"
                       tofile="${basedir}/target/${project.artifactId}-${project.version}.jar"/>
               </target>
             </configuration>
