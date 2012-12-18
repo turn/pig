@@ -267,22 +267,7 @@ public class JobControlCompiler{
         // Assert plan.size() != 0
         this.plan = plan;
 
-        int timeToSleep;
-        String defaultPigJobControlSleep = pigContext.getExecType() == ExecType.LOCAL ? "100" : "5000";
-        String pigJobControlSleep = conf.get("pig.jobcontrol.sleep", defaultPigJobControlSleep);
-        if (!pigJobControlSleep.equals(defaultPigJobControlSleep)) {
-          log.info("overriding default JobControl sleep (" + defaultPigJobControlSleep + ") to " + pigJobControlSleep);
-        }
-
-        try {
-          timeToSleep = Integer.parseInt(pigJobControlSleep);
-        } catch (NumberFormatException e) {
-          throw new RuntimeException("Invalid configuration " +
-              "pig.jobcontrol.sleep=" + pigJobControlSleep +
-              " should be a time in ms. default=" + defaultPigJobControlSleep, e);
-        }
-
-        JobControl jobCtrl = HadoopShims.newJobControl(grpName, timeToSleep);
+        JobControl jobCtrl = new JobControl(grpName);
 
         try {
             List<MapReduceOper> roots = new LinkedList<MapReduceOper>();

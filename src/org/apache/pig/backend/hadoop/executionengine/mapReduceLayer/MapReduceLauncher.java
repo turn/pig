@@ -279,7 +279,7 @@ public class MapReduceLauncher extends Launcher{
             // Now wait, till we are finished.
             while(!jc.allFinished()){
 
-              try { jcThread.join(sleepTime); }
+            	try { Thread.sleep(sleepTime); }
             	catch (InterruptedException e) {}
 
             	List<Job> jobsAssignedIdInThisRun = new ArrayList<Job>();

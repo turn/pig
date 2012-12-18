@@ -25,7 +25,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.jobcontrol.Job;
-import org.apache.hadoop.mapred.jobcontrol.JobControl;
 import org.apache.hadoop.mapreduce.ContextFactory;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobID;
@@ -36,7 +35,6 @@ import org.apache.hadoop.mapreduce.TaskType;
 import org.apache.hadoop.mapreduce.task.JobContextImpl;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POStore;
-import org.apache.pig.backend.hadoop23.PigJobControl;
 
 public class HadoopShims {
     static public JobContext cloneJobContext(JobContext original) throws IOException, InterruptedException {
@@ -96,10 +94,6 @@ public class HadoopShims {
 
     static public void commitOrCleanup(OutputCommitter oc, JobContext jc) throws IOException {
         oc.commitJob(jc);
-    }
-
-    public static JobControl newJobControl(String groupName, int timeToSleep) {
-      return new PigJobControl(groupName, timeToSleep);
     }
     
     public static long getDefaultBlockSize(FileSystem fs, Path path) {

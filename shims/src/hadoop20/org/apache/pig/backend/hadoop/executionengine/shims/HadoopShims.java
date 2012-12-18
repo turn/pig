@@ -25,7 +25,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.jobcontrol.Job;
-import org.apache.hadoop.mapred.jobcontrol.JobControl;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.OutputCommitter;
@@ -33,7 +32,6 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigOutputCommitter;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POStore;
-import org.apache.pig.backend.hadoop20.PigJobControl;
 
 /**
  * We need to make Pig work with both hadoop 20 and hadoop 23 (PIG-2125). However,
@@ -91,10 +89,6 @@ public class HadoopShims {
 
     static public void commitOrCleanup(OutputCommitter oc, JobContext jc) throws IOException {
         oc.cleanupJob(jc);
-    }
-
-    public static JobControl newJobControl(String groupName, int timeToSleep) {
-      return new PigJobControl(groupName, timeToSleep);
     }
     
     public static long getDefaultBlockSize(FileSystem fs, Path path) {
