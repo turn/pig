@@ -324,6 +324,16 @@ OPTIMIZATIONS
 
 BUG FIXES
 
+PIG-3076: make TestScalarAliases more reliable (julien)
+
+PIG-3020: "Duplicate uid in schema" error when joining two relations derived from the same load statement (jcoveney)
+
+PIG-3044: hotfix to remove divide by 0 error (jcoveney)
+
+PIG-3033: test-patch failed with javadoc warnings (fang fang chen via cheolsoo)
+
+PIG-3058: Upgrade junit to at least 4.8 (fang fang chen via cheolsoo)
+
 PIG-2978: TestLoadStoreFuncLifeCycle fails with hadoop-2.0.x (cheolsoo)
 
 PIG-3039: Not possible to use custom version of jackson jars (rohini)
