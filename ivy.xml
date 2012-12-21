@@ -225,6 +225,13 @@
       <exclude org="org.slf4j" module="log4j12"/>
       <exclude org="org.slf4j" module="slf4j-log4j12" />
     </dependency>
+    <dependency org="org.apache.hadoop" name="hadoop-yarn-client" 
+      rev="${hadoop-mapreduce.version}" conf="hadoop23->master">
+      <exclude org="org.slf4j" module="slf4j"/>
+      <exclude org="org.slf4j" module="slf4j-api"/>
+      <exclude org="org.slf4j" module="log4j12"/>
+      <exclude org="org.slf4j" module="slf4j-log4j12" />
+    </dependency>
     <dependency org="org.apache.hadoop" name="hadoop-yarn-common" 
       rev="${hadoop-mapreduce.version}" conf="hadoop23->master">
       <exclude org="org.slf4j" module="slf4j"/>
