@@ -824,6 +824,7 @@
             <!-- <sysproperty key="hod.command" value="${hod.command}"/>
             			<sysproperty key="hod.param" value="${hod.param}"/> -->
             <sysproperty key="hadoop.log.dir" value="${test.log.dir}"/>
+            <env key="MALLOC_ARENA_MAX" value="4"/>
             <classpath>
                 <path refid="junit.test.classpath"/>
             </classpath>
