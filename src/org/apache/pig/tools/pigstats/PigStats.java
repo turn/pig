@@ -169,6 +169,16 @@ public abstract class PigStats {
      */
     public abstract long getRecordWritten();
 
+    /**
+     * Returns the total number of processed input splits.
+     */
+    public abstract long getInputSplits();
+
+    /**
+     * Returns the total number of errors thrown while loading input splits.
+     */
+    public abstract long getInputErrors();
+
     public String getHadoopVersion() {
         return ScriptState.get().getHadoopVersion();
     }

@@ -31,6 +31,7 @@ import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.jobcontrol.Job;
 import org.apache.hadoop.mapred.jobcontrol.JobControl;
+import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.InputErrorTracker;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.JobControlCompiler;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceOper;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.NativeMapReduceOper;
@@ -69,7 +70,13 @@ public abstract class PigStatsUtil {
             = "Input records from ";
     public static final String MULTI_INPUTS_COUNTER_GROUP 
             = "MultiInputCounters";
-    
+    public static final String INPUT_SPLITS 
+            = "INPUT_SPLITS";
+    public static final String INPUT_ERRORS 
+            = "INPUT_ERRORS";
+    public static final String INPUT_ERROR_COUNTER_GROUP 
+            = InputErrorTracker.class.getName();
+
     private static final Log LOG = LogFactory.getLog(PigStatsUtil.class);
     
     // Restrict total string size of a counter name to 64 characters.

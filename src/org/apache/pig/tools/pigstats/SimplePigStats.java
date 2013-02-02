@@ -294,7 +294,29 @@ final class SimplePigStats extends PigStats {
         }
         return ret;
     }
-   
+
+    @Override
+    public long getInputSplits() {
+        Iterator<JobStats> it = jobPlan.iterator();
+        long ret = 0;
+        while (it.hasNext()) {
+            long n = it.next().getInputSplits();
+            if (n > 0) ret += n;
+        }
+        return ret;
+    }
+
+    @Override
+    public long getInputErrors() {
+        Iterator<JobStats> it = jobPlan.iterator();
+        long ret = 0;
+        while (it.hasNext()) {
+            long n = it.next().getInputErrors();
+            if (n > 0) ret += n;
+        }
+        return ret;
+    }
+
     @Override
     public String getScriptId() {
         return ScriptState.get().getId();
@@ -517,6 +539,14 @@ final class SimplePigStats extends PigStats {
                     + getProactiveSpillCountObjects()).append("\n");
             sb.append("Total records proactively spilled: " 
                     + getProactiveSpillCountRecords()).append("\n");
+            long numInputSplits = getInputSplits();
+            long numInputErrors = getInputErrors();
+            sb.append("Total input splits processed : " + numInputSplits).append("\n");
+            sb.append("Total bad input splits : " + numInputErrors);
+            if (numInputSplits > 0) {
+                sb.append(" ( " + numInputErrors / (float)numInputSplits * 100f).append("% )");
+            }
+            sb.append("\n");
         }
         
         sb.append("\nJob DAG:\n").append(jobPlan.toString());

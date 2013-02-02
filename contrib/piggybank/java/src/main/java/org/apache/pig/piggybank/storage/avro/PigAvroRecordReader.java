@@ -32,6 +32,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.data.TupleFactory;
+import org.apache.pig.tools.counters.PigCounterHelper;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -49,7 +50,6 @@ public class PigAvroRecordReader extends RecordReader<NullWritable, Writable> {
     private long start;
     private long end;
     private Path path;
-    private boolean ignoreBadFiles; /* whether ignore corrupted files during load */
 
     private TupleFactory tupleFactory = TupleFactory.getInstance();
 
@@ -68,7 +68,7 @@ public class PigAvroRecordReader extends RecordReader<NullWritable, Writable> {
      * constructor to initialize input and avro data reader
      */
     public PigAvroRecordReader(TaskAttemptContext context, FileSplit split,
-            Schema schema, boolean ignoreBadFiles,
+            Schema schema,
             Map<Path, Map<Integer, Integer>> schemaToMergedSchemaMap) throws IOException {
         this.path = split.getPath();
         this.in = new AvroStorageInputStream(path, context);
@@ -85,7 +85,6 @@ public class PigAvroRecordReader extends RecordReader<NullWritable, Writable> {
         this.reader.sync(split.getStart()); // sync to start
         this.start = in.tell();
         this.end = split.getStart() + split.getLength();
-        this.ignoreBadFiles = ignoreBadFiles;
         this.schemaToMergedSchemaMap = schemaToMergedSchemaMap;
         if (schemaToMergedSchemaMap != null) {
             // initialize mProtoTuple
@@ -176,21 +175,10 @@ public class PigAvroRecordReader extends RecordReader<NullWritable, Writable> {
 
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
-        try {
-            if (!reader.hasNext() || reader.pastSync(end)) {
-                return false;
-            }
-            return true;
-        } catch (AvroRuntimeException e) {
-            if (ignoreBadFiles) {
-                // For currupted files, AvroRuntimeException can be thrown.
-                // We ignore them if the option 'ignore_bad_files' is enabled.
-                LOG.warn("Ignoring bad file '" + path + "'.");
-                return false;
-            } else {
-                throw e;
-            }
+        if (!reader.hasNext() || reader.pastSync(end)) {
+            return false;
         }
+        return true;
     }
 
 }

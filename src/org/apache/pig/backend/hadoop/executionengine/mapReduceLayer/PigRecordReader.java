@@ -33,6 +33,7 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.pig.LoadFunc;
 import org.apache.pig.backend.hadoop.datastorage.ConfigurationUtil;
+import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.InputErrorTracker;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.impl.io.FileSpec;
 import org.apache.pig.impl.util.ObjectSerializer;
@@ -61,6 +62,8 @@ public class PigRecordReader extends RecordReader<Text, Tuple> {
     transient private String counterGroup = "";
     private boolean doTiming = false;
 
+    private InputErrorTracker errorTracker;
+    
     /**
      * the current Tuple value as returned by underlying
      * {@link LoadFunc#getNext()}
@@ -120,6 +123,10 @@ public class PigRecordReader extends RecordReader<Text, Tuple> {
         progress = 0;
         idx = 0;
         this.limit = limit;
+        // Initialize the error tracker prior to the initialization of
+        // RecordReader, so we can keep track of errors during the
+        // initialization of RecordReader.
+        errorTracker = new InputErrorTracker(context.getConfiguration());
         initNextRecordReader();
         counterGroup = loadFunc.toString();
         doTiming = context.getConfiguration().getBoolean(TIME_UDFS_PROP, false);
@@ -189,10 +196,16 @@ public class PigRecordReader extends RecordReader<Text, Tuple> {
         // now invoke initialize() on underlying RecordReader with
         // the "adjusted" conf
         if (null != curReader) {
-            curReader.initialize(pigSplit.getWrappedSplit(), context);
-            loadfunc.prepareToRead(curReader, pigSplit);
+            try {
+                curReader.initialize(pigSplit.getWrappedSplit(), context);
+                loadfunc.prepareToRead(curReader, pigSplit);
+            } catch (Exception e) {
+                // Encountered an error during the initialization of RecordReader,
+                // so increase the error counter.
+                errorTracker.incErrors(pigSplit.getWrappedSplit(), e);
+            }
         }
-                
+
         if (pigSplit.isMultiInputs() && !pigSplit.disableCounter()) { 
             counterName = getMultiInputsCounerName(pigSplit, inputSpecificConf);
         }
@@ -208,10 +221,34 @@ public class PigRecordReader extends RecordReader<Text, Tuple> {
         if (timeThis) {
             startNanos = System.nanoTime();
         }
-        while ((curReader == null) || (curValue = loadfunc.getNext()) == null) {
-            if (!initNextRecordReader()) {
-              return false;
+
+        while (true) {
+            curValue = null;
+            try {
+                if (curReader != null) {
+                    curValue = loadfunc.getNext();
+                }
+            } catch (Exception e) {
+                // Encountered an error while loading records. Since we already
+                // increased the split counter when initializing the record
+                // reader, we increase the number of errors only.
+                errorTracker.incErrors(pigSplit.getWrappedSplit(), e);
             }
+            if (curValue == null) {
+                // The current record reader could no longer load records. This can
+                // be because either there is no more record left in the current
+                // split, or it's a bad split. For both cases, we move on to the
+                // next split.
+                if (!initNextRecordReader()) {
+                    // There is no more split, so return.
+                    return false;
+                }
+                // Load a record from the next record reader.
+                continue;
+            } else {
+                // Loaded a record from the current record reader, so stop.
+                break;
+             }
         }
         if (timeThis) {
             PigStatusReporter.getInstance().getCounter(counterGroup, TIMING_COUNTER).increment(
@@ -249,9 +286,13 @@ public class PigRecordReader extends RecordReader<Text, Tuple> {
             return false;
         }
 
+        // Increase the split counter before the initialization of RecordReader.
+        // So even if we encounter an error during the initialization, we still
+        // count the current split.
+        errorTracker.incSplits();
+
         // get a record reader for the idx-th chunk
         try {
-          
             pigSplit.setCurrentIdx(idx);
             curReader =  inputformat.createRecordReader(pigSplit.getWrappedSplit(), context);
             LOG.info("Current split being processed "+pigSplit.getWrappedSplit());
@@ -263,7 +304,9 @@ public class PigRecordReader extends RecordReader<Text, Tuple> {
                 loadfunc.prepareToRead(curReader, pigSplit);
             }
         } catch (Exception e) {
-            throw new RuntimeException (e);
+            // Encountered an error during the initialization of RecordReader,
+            // so increase the error counter.
+            errorTracker.incErrors(pigSplit.getWrappedSplit(), e);
         }
         idx++;
         return true;

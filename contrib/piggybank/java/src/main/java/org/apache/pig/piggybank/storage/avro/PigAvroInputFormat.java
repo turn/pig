@@ -40,7 +40,6 @@ import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 public class PigAvroInputFormat extends FileInputFormat<NullWritable, Writable> {
 
     private Schema schema = null;  /* avro schema */
-    private boolean ignoreBadFiles = false; /* whether ignore corrupted files during load */
 
     /* if multiple avro record schemas are merged, this map associates each input
      * record with a remapping of its fields relative to the merged schema. please
@@ -55,16 +54,14 @@ public class PigAvroInputFormat extends FileInputFormat<NullWritable, Writable> 
     }
 
     /**
-     * constructor called by AvroStorage to pass in schema and ignoreBadFiles.
+     * constructor called by AvroStorage to pass in schema.
      * @param schema input data schema
-     * @param ignoreBadFiles whether ignore corrupted files during load
      * @param schemaToMergedSchemaMap map that associates each input record
      * with a remapping of its fields relative to the merged schema
      */
-    public PigAvroInputFormat(Schema schema, boolean ignoreBadFiles,
+    public PigAvroInputFormat(Schema schema,
             Map<Path, Map<Integer, Integer>> schemaToMergedSchemaMap) {
         this.schema = schema;
-        this.ignoreBadFiles = ignoreBadFiles;
         this.schemaToMergedSchemaMap = schemaToMergedSchemaMap;
     }
 
@@ -79,7 +76,7 @@ public class PigAvroInputFormat extends FileInputFormat<NullWritable, Writable> 
     throws IOException,  InterruptedException {
         context.setStatus(split.toString());
         return new PigAvroRecordReader(context, (FileSplit) split, schema,
-                ignoreBadFiles, schemaToMergedSchemaMap);
+                schemaToMergedSchemaMap);
     }
 
 }

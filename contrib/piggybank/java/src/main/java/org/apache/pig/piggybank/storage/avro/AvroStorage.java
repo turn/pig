@@ -53,6 +53,7 @@ import org.apache.pig.ResourceSchema;
 import org.apache.pig.ResourceStatistics;
 import org.apache.pig.StoreFunc;
 import org.apache.pig.StoreFuncInterface;
+import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.InputErrorTracker;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigSplit;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.impl.util.UDFContext;
@@ -155,6 +156,13 @@ public class AvroStorage extends FileInputLoadFunc implements StoreFuncInterface
         if (AvroStorageUtils.getAllSubDirs(new Path(location), conf, paths)) {
             setInputAvroSchema(paths, conf);
             FileInputFormat.setInputPaths(job, paths.toArray(new Path[0]));
+            if (ignoreBadFiles) {
+                AvroStorageLog.warn("'ignore_bad_files' is deprecated. Use the '"
+                        + InputErrorTracker.BAD_SPLIT_THRESHOLD_CONF_KEY + "' and '"
+                        + InputErrorTracker.BAD_SPLIT_MIN_COUNT_CONF_KEY + "' properties "
+                        + "instead.");
+                job.getConfiguration().set(InputErrorTracker.BAD_SPLIT_THRESHOLD_CONF_KEY, "1");
+            }
         } else {
             throw new IOException("Input path \'" + location + "\' is not found");
         }
@@ -327,10 +335,10 @@ public class AvroStorage extends FileInputLoadFunc implements StoreFuncInterface
                 // When merging multiple avro schemas, we use embedded schemas
                 // to load input files. So no input avro schema is passed.
                 result = new PigAvroInputFormat(
-                        null, ignoreBadFiles, schemaToMergedSchemaMap);
+                        null, schemaToMergedSchemaMap);
             } else {
                 result = new PigAvroInputFormat(
-                        inputAvroSchema, ignoreBadFiles, schemaToMergedSchemaMap);
+                        inputAvroSchema, schemaToMergedSchemaMap);
             }
         } else {
             result = new TextInputFormat();

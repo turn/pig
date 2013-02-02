@@ -123,7 +123,9 @@ public final class JobStats extends Operator {
     private long spillCount = 0;
     private long activeSpillCountObj = 0;
     private long activeSpillCountRecs = 0;
-    
+    private long inputSplits = 0;
+    private long inputErrors = 0;
+
     private HashMap<String, Long> multiStoreCounters 
             = new HashMap<String, Long>();
     
@@ -182,7 +184,11 @@ public final class JobStats extends Operator {
     public long getProactiveSpillCountRecs() { return activeSpillCountRecs; }
     
     public long getHdfsBytesWritten() { return hdfsBytesWritten; }
-    
+
+    public long getInputSplits() { return inputSplits; }
+
+    public long getInputErrors() { return inputErrors; }
+
     @SuppressWarnings("deprecation")
     public Counters getHadoopCounters() { return counters; }
     
@@ -359,6 +365,8 @@ public final class JobStats extends Operator {
                     .getGroup(PigStatsUtil.MULTI_STORE_COUNTER_GROUP);
             Counters.Group multiloadgroup = counters
                     .getGroup(PigStatsUtil.MULTI_INPUTS_COUNTER_GROUP);
+            Counters.Group inputerrorgroup = counters
+                    .getGroup(PigStatsUtil.INPUT_ERROR_COUNTER_GROUP);
 
             mapInputRecords = taskgroup.getCounterForName(
                     PigStatsUtil.MAP_INPUT_RECORDS).getCounter();
@@ -379,6 +387,10 @@ public final class JobStats extends Operator {
                     PigCounters.PROACTIVE_SPILL_COUNT_BAGS).getCounter();
             activeSpillCountRecs = counters.findCounter(
                     PigCounters.PROACTIVE_SPILL_COUNT_RECS).getCounter();
+            inputSplits = inputerrorgroup.getCounterForName(
+                    PigStatsUtil.INPUT_SPLITS).getCounter();
+            inputErrors = inputerrorgroup.getCounterForName(
+                    PigStatsUtil.INPUT_ERRORS).getCounter();
 
             Iterator<Counter> iter = multistoregroup.iterator();
             while (iter.hasNext()) {

@@ -180,7 +180,17 @@ final class EmbeddedPigStats extends PigStats {
     public OutputStats result(String alias) {
         throw new UnsupportedOperationException();
     }
-   
+
+    @Override
+    public long getInputSplits() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public long getInputErrors() {
+        throw new UnsupportedOperationException();
+    }
+
     //-------------------------------------------------------------------------
     
     EmbeddedPigStats(Map<String, List<PigStats>> statsMap) {

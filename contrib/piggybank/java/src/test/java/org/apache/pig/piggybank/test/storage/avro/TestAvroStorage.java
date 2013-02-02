@@ -33,6 +33,7 @@ import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.backend.executionengine.ExecJob;
 import org.apache.pig.backend.executionengine.ExecJob.JOB_STATUS;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.JobCreationException;
+import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.InputErrorTracker;
 import org.apache.pig.impl.logicalLayer.FrontendException;
 import org.apache.pig.piggybank.storage.avro.AvroStorage;
 import org.apache.pig.piggybank.storage.avro.PigSchema2Avro;
@@ -175,7 +176,7 @@ public class TestAvroStorage {
         "     } ]" +
         "   } ]" +
         " }";
-    final private String testCorruptedFile = getInputFile("test_corrupted_file.avro");
+    final private String testCorruptedFileDir = getInputFile("test_corrupted_file");
     final private String testMultipleSchemas1File = getInputFile("test_primitive_types/*");
     final private String testMultipleSchemas2File = getInputFile("test_complex_types/*");
 
@@ -993,11 +994,12 @@ public class TestAvroStorage {
 
     @Test
     public void testCorruptedFile1() throws IOException {
-        // Verify that load fails when bad files are found if ignore_bad_files is disabled.
+        // Verify that load fails when bad files are found if the bad split
+        // threshold is not set.
         String output = outbasedir + "testCorruptedFile1";
         deleteDirectory(new File(output));
         String [] queries = {
-           " in = LOAD '" + testCorruptedFile + "' USING org.apache.pig.piggybank.storage.avro.AvroStorage ();",
+           " in = LOAD '" + testCorruptedFileDir + "/bad.avro' USING org.apache.pig.piggybank.storage.avro.AvroStorage ();",
            " STORE in INTO '" + output + "' USING org.apache.pig.piggybank.storage.avro.AvroStorage ();"
             };
         // Job is expected to fail for bad files.
@@ -1006,13 +1008,64 @@ public class TestAvroStorage {
 
     @Test
     public void testCorruptedFile2() throws IOException {
-        // Verify that corrupted files are skipped if ignore_bad_files is enabled.
-        // Output is expected to be empty.
+        // Verify that all the bad files are skipped if the bad split threshold
+        // is set to 1.
         String output = outbasedir + "testCorruptedFile2";
-        String expected = basedir + "expected_testCorruptedFile.avro";
+        String expected = basedir + "expected_testCorruptedFile2.avro";
         deleteDirectory(new File(output));
+
+        // Set the bad split threshold to 100%, so the job will skip all the
+        // currupted splits instead fail.
+        pigServerLocal.getPigContext().getProperties().setProperty(
+                InputErrorTracker.BAD_SPLIT_THRESHOLD_CONF_KEY, "1");
+
         String [] queries = {
-           " in = LOAD '" + testCorruptedFile + "'" +
+           " in = LOAD '" + testCorruptedFileDir + "/bad.avro'" +
+                  " USING org.apache.pig.piggybank.storage.avro.AvroStorage ();",
+           " STORE in INTO '" + output + "' USING org.apache.pig.piggybank.storage.avro.AvroStorage ();"
+            };
+        testAvroStorage(queries);
+        verifyResults(output, expected);
+    }
+
+    @Test
+    public void testCorruptedFile3() throws IOException {
+        // Verify that half the bad files are skipped if the bad split threshold
+        // is set to 0.5.
+        String output = outbasedir + "testCorruptedFile3";
+        String expected = basedir + "expected_testCorruptedFile3.avro";
+        deleteDirectory(new File(output));
+
+        // Set the bad split threshold to 50%, so the job will skip bad splits
+        // until the threshold is crossed.
+        pigServerLocal.getPigContext().getProperties().setProperty(
+                InputErrorTracker.BAD_SPLIT_THRESHOLD_CONF_KEY, "0.5");
+        // Set the bad split min to 1. This is needed because if the first file
+        // is bad, the error rate will be 100% momentarily, which crosses the
+        // threshold, so the job will fail.
+        pigServerLocal.getPigContext().getProperties().setProperty(
+                InputErrorTracker.BAD_SPLIT_MIN_COUNT_CONF_KEY, "1");
+
+        String [] queries = {
+           " in = LOAD '" + testCorruptedFileDir + "/*.avro'" +
+                  " USING org.apache.pig.piggybank.storage.avro.AvroStorage ();",
+           " STORE in INTO '" + output + "' USING org.apache.pig.piggybank.storage.avro.AvroStorage ();"
+            };
+        testAvroStorage(queries);
+        verifyResults(output, expected);
+    }
+
+    @Test
+    public void testCorruptedFile4() throws IOException {
+        // Verify that corrupted files are skipped if 'ignore_bad_files' is enabled.
+        // Output is expected to be empty.
+        // TODO: Remove this test when 'ignore_bad_files' is removed.
+        String output = outbasedir + "testCorruptedFile4";
+        String expected = basedir + "expected_testCorruptedFile4.avro";
+        deleteDirectory(new File(output));
+
+        String [] queries = {
+           " in = LOAD '" + testCorruptedFileDir + "/bad.avro'" +
                   " USING org.apache.pig.piggybank.storage.avro.AvroStorage ('ignore_bad_files');",
            " STORE in INTO '" + output + "' USING org.apache.pig.piggybank.storage.avro.AvroStorage ();"
             };
