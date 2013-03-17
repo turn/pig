@@ -271,7 +271,23 @@
     <condition property="ant-eclipse.jar.exists">
       <available file="${build.dir}/lib/ant-eclipse-1.0-jvm1.2.jar"/>
     </condition>
-  
+
+    <!-- JVM version validation -->
+    <target name="jvm-check">
+        <property name="javaVersion" value="1.6"/>
+
+        <property name="requiredJavaVersion" value="xx${javaVersion}"/>
+        <property name="currentJavaVersion" value="xx${java.version}"/>
+        <condition property="jvm.fail">
+            <not>
+                <contains string="${currentJavaVersion}" substring="${requiredJavaVersion}"/>
+            </not>
+        </condition>
+        <fail if="jvm.fail">
+            Incorrect JVM, current = ${java.version}, required ${javaVersion}.
+        </fail>
+    </target>
+
     <target name="ant-eclipse-download" unless="ant-eclipse.jar.exists"
             description="Downloads the ant-eclipse binary.">
       <get src="http://downloads.sourceforge.net/project/ant-eclipse/ant-eclipse/1.0/ant-eclipse-1.0.bin.tar.bz2"
@@ -360,7 +376,7 @@
         </else>
     </if>
 
-    <target name="init" depends="ivy-compile" >
+    <target name="init" depends="jvm-check,ivy-compile" >
         <mkdir dir="${src.gen.query.parser.dir}" />
         <mkdir dir="${src.gen.script.parser.dir}" />
         <mkdir dir="${src.gen.param.parser.dir}" />
@@ -399,7 +415,7 @@
     <!-- ================================================================== -->
     <!-- Clean.  Delete the build files, and their directories              -->
     <!-- ================================================================== -->
-    <target name="clean" description="Cleanup build artifacts">
+    <target name="clean" depends="jvm-check" description="Cleanup build artifacts">
         <delete dir="${src.gen.dir}" />
         <delete dir="${docs.dir}/build" />
         <delete file="${jdiff.xml.dir}\${name}_${version}.xml" />
