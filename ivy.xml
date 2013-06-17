@@ -351,9 +351,9 @@
 
     <dependency org="org.jruby" name="jruby-complete" rev="${jruby.version}" conf="compile->master"/>
 
-    <dependency org="org.apache.hbase" name="hbase" rev="${hbase.version}" conf="compile->master">
-      <artifact name="hbase" type="jar"/>
-      <artifact name="hbase" type="test-jar" ext="jar" m:classifier="tests"/>
+    <dependency org="org.apache.hbase" name="hbase-client" rev="${hbase.version}" conf="compile->master">
+      <artifact name="hbase-client" type="jar"/>
+      <artifact name="hbase-client" type="test-jar" ext="jar" m:classifier="tests"/>
       <exclude org="org.apache.thrift" module="thrift"/>
       <exclude org="org.apache.hadoop" module="hadoop-core"/>
       <exclude org="org.apache.ant" module="ant" />
