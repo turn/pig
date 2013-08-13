@@ -537,7 +537,7 @@ public class LogicalPlanBuilder {
 		        .getFields();
 		for (int i = 0; i < fields.size(); i++) {
 		    LogicalExpressionPlan lEplan = new LogicalExpressionPlan();
-		    new ProjectExpression(lEplan, i, fields.get(i).alias, gen);
+		    new ProjectExpression(lEplan, i, fields.get(i).alias, null, gen);
 		    allExprPlan.add(lEplan);
 		}
 	    }
@@ -630,7 +630,7 @@ public class LogicalPlanBuilder {
 	// Generate and Foreach operator creation
 	String falias = null;
 	try {
-	    buildGenerateOp(loc, (LOForEach) foreach, (LOGenerate) gen, operators, allExprPlan,
+	    buildGenerateOp(loc, (LOForEach) foreach, (LOGenerate) gen, allExprPlan,
 		    flattenFlags, getUserDefinedSchema(allExprPlan));
 	    falias = buildForeachOp(loc, (LOForEach) foreach, "cube", inputAlias, innerPlan);
 	} catch (ParserValidationException pve) {
@@ -649,7 +649,7 @@ public class LogicalPlanBuilder {
 	for (LogicalExpressionPlan exp : expressionPlans.values()) {
 	    LogicalExpression lexp = (LogicalExpression) exp.getSources().get(0);
 	    LogicalExpressionPlan epGrp = new LogicalExpressionPlan();
-	    new ProjectExpression(epGrp, 0, lexp.getFieldSchema().alias, groupby);
+	    new ProjectExpression(epGrp, 0, lexp.getFieldSchema().alias, null, groupby);
 	    exprPlansCopy.put(0, epGrp);
 	}
 
@@ -930,7 +930,6 @@ public class LogicalPlanBuilder {
     }
 
     void buildGenerateOp(SourceLocation loc, LOForEach foreach, LOGenerate gen,
-            Map<String, Operator> operators,
             List<LogicalExpressionPlan> exprPlans, List<Boolean> flattenFlags,
             List<LogicalSchema> schemas)
     throws ParserValidationException {
@@ -955,7 +954,7 @@ public class LogicalPlanBuilder {
             }
             idx++;
             try {
-                processExpressionPlan( foreach, innerPlan, exprPlan, operators, inputs );
+                processExpressionPlan( foreach, innerPlan, exprPlan, inputs );
             } catch (FrontendException e) {
                 throw new ParserValidationException(intStream, loc, e);
             }
@@ -977,14 +976,12 @@ public class LogicalPlanBuilder {
      * @param foreach
      * @param lp Logical plan in which the LOGenerate is in
      * @param plan One of the output expression of the LOGenerate
-     * @param operators All logical operators in lp;
      * @param inputs  inputs of the LOGenerate
      * @throws FrontendException
      */
     private static void processExpressionPlan(LOForEach foreach,
                                       LogicalPlan lp,
                                       LogicalExpressionPlan plan,
-                                      Map<String, Operator> operators,
                                       ArrayList<Operator> inputs ) throws FrontendException {
         Iterator<Operator> it = plan.getOperators();
         while( it.hasNext() ) {
@@ -999,10 +996,9 @@ public class LogicalPlanBuilder {
                             new ProjectExpression(projExpr, new LogicalExpressionPlan())
                     );
                     setupInnerLoadAndProj(innerLoad, projExpr, lp, inputs);
-                }
-                else if( colAlias != null ) {
+                } else if( colAlias != null ) {
                     // the project is using a column alias
-                    Operator op = operators.get( colAlias );
+                    Operator op = projExpr.getProjectedOperator();
                     if( op != null ) {
                         // this means the project expression refers to a relation
                         // in the nested foreach
@@ -1244,7 +1240,7 @@ public class LogicalPlanBuilder {
      * @throws RecognitionException
      */
     LogicalExpression buildProjectExpr(SourceLocation loc, LogicalExpressionPlan plan, LogicalRelationalOperator op,
-            Map<String, LogicalExpressionPlan> exprPlans, String colAlias, int col)
+    		Map<String, Operator> operators, Map<String, LogicalExpressionPlan> exprPlans, String colAlias, int col)
     throws RecognitionException {
         ProjectExpression result = null;
 
@@ -1283,7 +1279,7 @@ public class LogicalPlanBuilder {
                 }
                 return root;
             } else {
-                result = new ProjectExpression( plan, 0, colAlias, op );
+                result = new ProjectExpression( plan, 0, colAlias, operators.get( colAlias ), op );
                 result.setLocation( loc );
                 return result;
             }
@@ -1303,7 +1299,7 @@ public class LogicalPlanBuilder {
     throws ParserValidationException {
         ProjectExpression result = null;
         result = colAlias != null ?
-            new ProjectExpression( plan, input, colAlias, relOp ) :
+            new ProjectExpression( plan, input, colAlias, null, relOp ) :
             new ProjectExpression( plan, input, col, relOp );
         result.setLocation( loc );
         return result;
