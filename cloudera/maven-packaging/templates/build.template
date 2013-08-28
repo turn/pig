@@ -9,4 +9,4 @@ avro.version=org.apache.avro:avro.version
 hadoop-common.version=org.apache.hadoop:hadoop-common.version
 hadoop-hdfs.version=org.apache.hadoop:hadoop-hdfs.version
 hadoop-mapreduce.version=org.apache.hadoop:hadoop-mapreduce.version
-
+protobuf-java.version=com.google.protobuf:protobuf-java.version
