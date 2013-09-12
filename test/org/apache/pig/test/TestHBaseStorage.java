@@ -60,8 +60,6 @@ public class TestHBaseStorage {
     private static MiniCluster cluster;
     private static PigServer pig;
 
-    final static int NUM_REGIONSERVERS = 1;
-
     enum DataFormat {
         HBaseBinary, UTF8PlainText,
     }
