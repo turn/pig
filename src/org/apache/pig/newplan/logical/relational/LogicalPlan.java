@@ -22,6 +22,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.io.ByteArrayOutputStream;
 
 import org.apache.pig.impl.logicalLayer.FrontendException;
 import org.apache.pig.impl.util.HashOutputStream;
@@ -32,6 +33,10 @@ import org.apache.pig.newplan.logical.DotLOPrinter;
 import org.apache.pig.newplan.logical.optimizer.LogicalPlanPrinter;
 
 import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
+
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 
 /**
@@ -125,15 +130,22 @@ public class LogicalPlan extends BaseOperatorPlan {
      * @throws FrontendException if signature can't be computed
      */
     public String getSignature() throws FrontendException {
-
-        // Use a streaming hash function. goodFastHash(32) is murmur3 32 bits
-        HashFunction hf = Hashing.goodFastHash(32);
-        HashOutputStream hos = new HashOutputStream(hf);
-        PrintStream ps = new PrintStream(hos);
-
+        String logicalPlanString = getLogicalPlanString();
+        return Integer.toString(logicalPlanString.hashCode());
+    }
+ 
+    public String getHash() throws FrontendException {
+        HashFunction hf = Hashing.md5();
+        Hasher h = hf.newHasher();
+        h.putString(getLogicalPlanString());
+        return h.hash().toString();
+    }
+ 
+    private String getLogicalPlanString() throws FrontendException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        PrintStream ps = new PrintStream(baos);
         LogicalPlanPrinter printer = new LogicalPlanPrinter(this, ps);
         printer.visit();
-
-        return Integer.toString(hos.getHashCode().asInt());
+        return baos.toString();
     }
 }

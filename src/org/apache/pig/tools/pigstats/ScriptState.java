@@ -61,8 +61,6 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOpe
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POMergeCogroup;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POMergeJoin;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POPartialAgg;
-import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POCounter;
-import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.PORank;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POSkewedJoin;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POSort;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POSplit;
@@ -75,6 +73,7 @@ import org.apache.pig.impl.logicalLayer.FrontendException;
 import org.apache.pig.impl.plan.DepthFirstWalker;
 import org.apache.pig.impl.plan.VisitorException;
 import org.apache.pig.impl.util.JarManager;
+import org.apache.pig.impl.util.ObjectSerializer;
 import org.apache.pig.newplan.Operator;
 import org.apache.pig.newplan.logical.relational.LOCogroup;
 import org.apache.pig.newplan.logical.relational.LOCross;
@@ -91,9 +90,9 @@ import org.apache.pig.newplan.logical.relational.LOStream;
 import org.apache.pig.newplan.logical.relational.LOUnion;
 import org.apache.pig.newplan.logical.relational.LogicalPlan;
 import org.apache.pig.newplan.logical.relational.LogicalRelationalNodesVisitor;
+import org.apache.pig.tools.pigstats.PigStats.JobGraph;
 import org.apache.pig.newplan.logical.relational.LOCogroup.GROUPTYPE;
 import org.apache.pig.newplan.logical.relational.LOJoin.JOINTYPE;
-import org.apache.pig.tools.pigstats.PigStats.JobGraph;
 
 /**
  * ScriptStates encapsulates settings for a Pig script that runs on a hadoop
@@ -120,7 +119,10 @@ public class ScriptState {
         JOB_FEATURE         ("pig.job.feature"),
         SCRIPT_FEATURES     ("pig.script.features"),
         JOB_ALIAS           ("pig.alias"),
-        JOB_ALIAS_LOCATION  ("pig.alias.location");
+        JOB_ALIAS_LOCATION  ("pig.alias.location"),
+        ENABLE_PLAN_SERIALIZATION("pig.enable.plan.serialization"),
+        LOGICAL_PLAN        ("pig.logicalPlan"),
+        LOGICAL_PLAN_HASH   ("pig.logicalPlan.hash");
 
         private String displayStr;
 
@@ -287,14 +289,18 @@ public class ScriptState {
         }
     }
     
-    public void addSettingsToConf(MapReduceOper mro, Configuration conf) {
+    public void addSettingsToConf(MapReduceOper mro, Configuration conf) throws IOException {
         LOG.info("Pig script settings are added to the job");
         conf.set(PIG_PROPERTY.HADOOP_VERSION.toString(), getHadoopVersion());
         conf.set(PIG_PROPERTY.VERSION.toString(), getPigVersion());
         conf.set(PIG_PROPERTY.SCRIPT_ID.toString(), id);
         conf.set(PIG_PROPERTY.SCRIPT.toString(), getScript());        
         conf.set(PIG_PROPERTY.COMMAND_LINE.toString(), getCommandLine());
-        
+        if (isPlanSerializationEnabled()) {
+          conf.set(PIG_PROPERTY.LOGICAL_PLAN.toString(), getSerializedLogicalPlan());
+          conf.set(PIG_PROPERTY.LOGICAL_PLAN_HASH.toString(), getScriptHash());
+        }
+
         try {
             LinkedList<POStore> stores = PlanHelper.getPhysicalOperators(mro.mapPlan, POStore.class);
             ArrayList<String> outputDirs = new ArrayList<String>();
@@ -350,6 +356,24 @@ public class ScriptState {
             String[] s = new String[targets.size()];
             conf.setStrings("mapreduce.workflow.adjacency." + source.getOperatorKey().toString(), targets.toArray(s));
         }
+    }
+
+    private String getScriptHash() throws FrontendException {
+      return pigContext.getExecutionEngine().getNewPlan().getHash();
+    }
+
+    private boolean isPlanSerializationEnabled() {
+      if(pigContext == null) {
+        return false;
+      }
+
+      return "true".equals(pigContext.getProperties().
+          getProperty(PIG_PROPERTY.ENABLE_PLAN_SERIALIZATION.toString(),
+              "true"));
+    }
+
+    private String getSerializedLogicalPlan() throws IOException {
+      return ObjectSerializer.serialize(pigContext.getExecutionEngine().getNewPlan());
     }
 
     public void setScript(File file) {
