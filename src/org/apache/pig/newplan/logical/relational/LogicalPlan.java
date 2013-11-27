@@ -31,6 +31,10 @@ import org.apache.pig.newplan.OperatorPlan;
 import org.apache.pig.newplan.logical.DotLOPrinter;
 import org.apache.pig.newplan.logical.optimizer.LogicalPlanPrinter;
 
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
+
 /**
  * LogicalPlan is the logical view of relational operations Pig will execute 
  * for a given script.  Note that it contains only relational operations.
@@ -115,12 +119,22 @@ public class LogicalPlan extends BaseOperatorPlan {
      * @throws FrontendException if signature can't be computed
      */
     public String getSignature() throws FrontendException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        PrintStream ps = new PrintStream(baos);
+        String logicalPlanString = getLogicalPlanString();
+        return Integer.toString(logicalPlanString.hashCode());
+    }
 
-        LogicalPlanPrinter printer = new LogicalPlanPrinter(this, ps);
-        printer.visit();
+    public String getHash() throws FrontendException {
+      HashFunction hf = Hashing.md5();
+      Hasher h = hf.newHasher();
+      h.putString(getLogicalPlanString());
+      return h.hash().toString();
+    }
 
-        return Integer.toString(baos.toString().hashCode());
+    private String getLogicalPlanString() throws FrontendException {
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      PrintStream ps = new PrintStream(baos);
+      LogicalPlanPrinter printer = new LogicalPlanPrinter(this, ps);
+      printer.visit();
+      return baos.toString();
     }
 }

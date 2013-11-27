@@ -103,6 +103,7 @@ import org.apache.pig.impl.util.ObjectSerializer;
 import org.apache.pig.impl.util.Pair;
 import org.apache.pig.impl.util.UDFContext;
 import org.apache.pig.impl.util.Utils;
+import org.apache.pig.newplan.logical.relational.LogicalPlan;
 import org.apache.pig.tools.pigstats.ScriptState;
 
 /**
@@ -437,7 +438,11 @@ public class JobControlCompiler{
         String setScriptProp = conf.get(ScriptState.INSERT_ENABLED, "true");
         if (setScriptProp.equalsIgnoreCase("true")) {
             ScriptState ss = ScriptState.get();
+            try {
             ss.addSettingsToConf(mro, conf);
+            } catch (IOException ex) {
+              throw new JobCreationException("Unable to add logical Plan to job configuration");
+            }
         }
 
         conf.set("mapred.mapper.new-api", "true");
