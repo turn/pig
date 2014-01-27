@@ -115,4 +115,8 @@ public class HadoopShims {
     public static boolean isJobFailed(TaskReport report) {
         return report.getCurrentStatus()==TIPStatus.FAILED || report.getCurrentStatus()==TIPStatus.KILLED;
     }
+    
+    public static void unsetConf(Configuration conf, String key) {
+        conf.unset(key);
+    }
 }
