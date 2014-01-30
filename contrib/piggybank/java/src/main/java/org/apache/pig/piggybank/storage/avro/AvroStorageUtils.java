@@ -136,7 +136,7 @@ public class AvroStorageUtils {
     private static void getAllSubDirsInternal(FileStatus file, Configuration conf,
             Set<Path> paths, FileSystem fs) throws IOException {
         if (file.isDir()) {
-            for (FileStatus sub : fs.listStatus(file.getPath())) {
+            for (FileStatus sub : fs.listStatus(file.getPath(), PATH_FILTER)) {
                 getAllSubDirsInternal(sub, conf, paths, fs);
             }
         } else {

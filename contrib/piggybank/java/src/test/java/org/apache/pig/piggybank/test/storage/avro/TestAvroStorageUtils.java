@@ -18,6 +18,7 @@ package org.apache.pig.piggybank.test.storage.avro;
 
 import org.apache.avro.Schema;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.pig.piggybank.storage.avro.AvroStorageUtils;
@@ -34,6 +35,8 @@ import java.util.Set;
 import static org.junit.Assert.*;
 
 public class TestAvroStorageUtils {
+
+    String TMP_DIR = System.getProperty("user.dir") + "/build/test/tmp/";
 
     // Common elements of test records
     private final String TYPE_RECORD = "{ \"type\" : \"record\", ";
@@ -130,6 +133,36 @@ public class TestAvroStorageUtils {
             // so we simply confirm if it contains 'illegal file pattern'.
             assertTrue(e.getMessage().contains("Illegal file pattern"));
         }
+    }
+
+    // See PIG-3717
+    @Test
+    public void testGetAllSubDirs_FilterPath() throws Exception {
+      Configuration conf = new Configuration();
+
+      String topDir = "file://" + TMP_DIR;
+      Path topHidden = new Path( topDir + "/_SUCCESS");
+      Path topNormal = new Path(topDir + "/input.avro");
+      String subDir = topDir + "/subdirectory";
+      Path subHidden = new Path(subDir + "/.SUCCESS");
+      Path subNormal = new Path(subDir + "/input.avro");
+
+      FileSystem fs = FileSystem.get(conf);
+      fs.delete(new Path(topDir), true);
+      assertTrue(fs.mkdirs(new Path(topDir)));
+      assertTrue(fs.createNewFile(topHidden));
+      assertTrue(fs.createNewFile(topNormal));
+      assertTrue(fs.mkdirs(new Path(subDir)));
+      assertTrue(fs.createNewFile(subHidden));
+      assertTrue(fs.createNewFile(subNormal));
+
+      Set<Path> paths = new HashSet<Path>();
+
+      assertTrue(AvroStorageUtils.getAllSubDirs(new Path(topDir), conf, paths));
+      assertFalse(paths.isEmpty());
+      assertEquals(2, paths.size());
+      assertTrue(paths.contains(topNormal));
+      assertTrue(paths.contains(subNormal));
     }
 
     // test merging null and non-null
