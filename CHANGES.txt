@@ -55,6 +55,8 @@ PIG-3174: Remove rpm and deb artifacts from build.xml (gates)
 
 IMPROVEMENTS
 
+PIG-3730: Performance issue in SelfSpillBag (rajesh.balamohan via rohini)
+
 PIG-3619: Provide XPath function (Saad Patel via gates)
 
 PIG-3480: TFile-based tmpfile compression crashes in some cases (dvryaboy via aniket486)
