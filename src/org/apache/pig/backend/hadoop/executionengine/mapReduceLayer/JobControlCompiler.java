@@ -103,8 +103,8 @@ import org.apache.pig.impl.util.ObjectSerializer;
 import org.apache.pig.impl.util.Pair;
 import org.apache.pig.impl.util.UDFContext;
 import org.apache.pig.impl.util.Utils;
-import org.apache.pig.newplan.logical.relational.LogicalPlan;
 import org.apache.pig.tools.pigstats.ScriptState;
+import org.apache.pig.tools.pigstats.PigStatsUtil;
 
 /**
  * This is compiler class that takes an MROperPlan and converts
@@ -356,7 +356,24 @@ public class JobControlCompiler{
 
         try {
             counters = HadoopShims.getCounters(job);
-            groupCounters = counters.getGroup(getGroupName(counters.getGroupNames()));
+
+            String groupName = getGroupName(counters.getGroupNames());
+            // In case that the counter group was not find, we need to find
+            // out why. Only acceptable state is that the relation has been
+            // empty.
+            if (groupName == null) {
+                Counter outputRecords =
+                    counters.getGroup(PigStatsUtil.TASK_COUNTER_GROUP)
+                    .getCounterForName(PigStatsUtil.MAP_OUTPUT_RECORDS);
+
+                if(outputRecords.getCounter() == 0) {
+                    globalCounters.put(operationID, new ArrayList<Pair<String, Long>>());
+                    return;
+                } else {
+                  throw new RuntimeException("Did not found RANK counter group for operationId: " + operationID);
+                }
+            }
+            groupCounters = counters.getGroup(groupName);
 
             Iterator<Counter> it = groupCounters.iterator();
             HashMap<Integer,Long> counterList = new HashMap<Integer, Long>();
