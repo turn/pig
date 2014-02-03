@@ -69,6 +69,8 @@ PIG-3174: Remove rpm and deb artifacts from build.xml (gates)
 
 IMPROVEMENTS
 
+PIG-3299: Provide support for LazyOutputFormat to avoid creating empty files (lbendig via daijy)
+
 PIG-5110: Removing schema alias and :: coming from parent relation (szita via rohini)
 
 PIG-5025: Fix flaky test failures in TestLoad.java (szita via rohini)
