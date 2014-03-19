@@ -30,6 +30,8 @@ Release 0.12.1 (unreleased changes)
 
 BUG FIXES
 
+PIG-3818: PIG-2499 is accidently reverted (daijy)
+
 PIG-2949: JsonLoader only reads arrays of objects (eyal via daijy)
 
 PIG-3413: JsonLoader fails the pig job in case of malformed json input (eyal via daijy)
