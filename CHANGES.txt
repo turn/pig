@@ -18,6 +18,8 @@
 
 Pig Change Log
 
+PIG-4024: TestPigStreamingUDF and TestPigStreaming fail on IBM JDK
+
 PIG-4338: Fix test failures with JDK8
 
 PIG-4326: AvroStorageSchemaConversionUtilities does not properly convert schema for maps of arrays of records
