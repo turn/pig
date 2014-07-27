@@ -30,6 +30,8 @@ Release 0.12.1 (unreleased changes)
 
 BUG FIXES
 
+PIG-4052: TestJobControlSleep, TestInvokerSpeed are unreliable (daijy)
+
 PIG-3818: PIG-2499 is accidently reverted (daijy)
 
 PIG-4219: When parsing a schema, pig drops tuple inside of Bag if it contains only one field (lbendig via daijy)
