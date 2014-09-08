@@ -1051,6 +1051,9 @@ static class ConsoleReaderWithParamSub extends ConsoleReader {
     @Override
     public String readLine() throws IOException {
         String line = super.readLine();
+        if (null == line) {
+            return line;
+        }
         String paramSubLine = pc.doParamSubstitution(new BufferedReader(new StringReader(line)));
         return paramSubLine;
     }
