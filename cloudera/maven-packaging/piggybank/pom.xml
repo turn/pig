@@ -140,7 +140,7 @@
               <target>
                 <mkdir dir="${basedir}/target" />
                 <jar destfile="${basedir}/target/${project.artifactId}-${project.version}-sources.jar">
-                  <fileset dir="${basedir}/../../../contrib/piggybank/src/main/java">
+                  <fileset dir="${basedir}/../../../contrib/piggybank/java/src/main/java">
                     <include name="**/*"/>
                   </fileset>
                 </jar>
