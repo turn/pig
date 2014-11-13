@@ -88,6 +88,7 @@ public class TestAvroStorage {
         "recordsAsOutputByPigWithDates",
         "records",
         "recordsOfArrays",
+        "recordsOfStringArrays",
         "recordsOfArraysOfRecords",
         "recordsSubSchema",
         "recordsSubSchemaNullable",
@@ -305,6 +306,18 @@ public class TestAvroStorage {
         final StackTraceElement[] st = Thread.currentThread().getStackTrace();
         return outbasedir + st[2].getMethodName();
     }
+
+    @Test public void testLoadRecordsOfStringArrays() throws Exception {
+      final String input = basedir + "data/avro/uncompressed/recordsOfStringArrays.avro";
+      final String check = input;
+      testAvroStorage(true, basedir + "code/pig/dump.pig",
+          ImmutableMap.of(
+              "INFILE",             input,
+              "AVROSTORAGE_OUT_2", "-f " + basedir + "schema/recordsOfStringArrays.avsc",
+              "OUTFILE",            createOutputName())
+        );
+    }
+
 
     @Test public void testLoadRecords() throws Exception {
       final String input = basedir + "data/avro/uncompressed/records.avro";
