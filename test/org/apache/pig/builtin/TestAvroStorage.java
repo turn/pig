@@ -98,6 +98,7 @@ public class TestAvroStorage {
         "recordsWithFixed",
         "recordsWithMaps",
         "recordsWithMapsOfRecords",
+        "recordsWithMapsOfArrayOfRecords",
         "recordsWithNullableUnions",
         "recordWithRepeatedSubRecords",
         "recursiveRecord",
