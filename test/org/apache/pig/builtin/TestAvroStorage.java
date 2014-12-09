@@ -16,6 +16,23 @@
  */
 package org.apache.pig.builtin;
 
+import static org.apache.pig.builtin.mock.Storage.resetData;
+import static org.apache.pig.builtin.mock.Storage.tuple;
+import static org.junit.Assert.assertTrue;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+
 import org.apache.avro.file.DataFileStream;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericData.Record;
@@ -46,23 +63,7 @@ import org.junit.Test;
 
 import com.google.common.collect.ImmutableMap;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
-
 import static junit.framework.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.apache.pig.builtin.mock.Storage.resetData;
-import static org.apache.pig.builtin.mock.Storage.tuple;
 
 public class TestAvroStorage {
 
@@ -112,6 +113,7 @@ public class TestAvroStorage {
     private static PigServer pigServerLocal = null;
 
     public static final PathFilter hiddenPathFilter = new PathFilter() {
+        @Override
         public boolean accept(Path p) {
           String name = p.getName();
           return !name.startsWith("_") && !name.startsWith(".");
@@ -307,9 +309,9 @@ public class TestAvroStorage {
         return outbasedir + st[2].getMethodName();
     }
 
-    @Test public void testLoadRecordsOfStringArrays() throws Exception {
+    @Test
+    public void testLoadRecordsOfStringArrays() throws Exception {
       final String input = basedir + "data/avro/uncompressed/recordsOfStringArrays.avro";
-      final String check = input;
       testAvroStorage(true, basedir + "code/pig/dump.pig",
           ImmutableMap.of(
               "INFILE",             input,
@@ -319,7 +321,8 @@ public class TestAvroStorage {
     }
 
 
-    @Test public void testLoadRecords() throws Exception {
+    @Test
+    public void testLoadRecords() throws Exception {
       final String input = basedir + "data/avro/uncompressed/records.avro";
       final String check = basedir + "data/avro/uncompressed/recordsAsOutputByPig.avro";
       testAvroStorage(true, basedir + "code/pig/identity_ao2.pig",
@@ -332,7 +335,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadRecordsWithSimpleUnion() throws Exception {
+    @Test
+    public void testLoadRecordsWithSimpleUnion() throws Exception {
         final String input = basedir + "data/avro/uncompressed/recordsWithSimpleUnion.avro";
         final String check = basedir + "data/avro/uncompressed/recordsWithSimpleUnionOutput.avro";
         testAvroStorage(true, basedir + "code/pig/identity_ao2.pig",
@@ -344,8 +348,9 @@ public class TestAvroStorage {
           );
         verifyResults(createOutputName(),check);
     }
- 
-    @Test public void testProjection() throws Exception {
+
+    @Test
+    public void testProjection() throws Exception {
         final String input = basedir + "data/avro/uncompressed/records.avro";
         final String check = basedir + "data/avro/uncompressed/projectionTest.avro";
         testAvroStorage(true, basedir + "code/pig/projection_test.pig",
@@ -358,7 +363,8 @@ public class TestAvroStorage {
         verifyResults(createOutputName(),check);
     }
 
-    @Test public void testProjectionWithSchema() throws Exception {
+    @Test
+    public void testProjectionWithSchema() throws Exception {
         final String input = basedir + "data/avro/uncompressed/records.avro";
         final String check = basedir + "data/avro/uncompressed/projectionTestWithSchema.avro";
         testAvroStorage(true, basedir + "code/pig/projection_test_with_schema.pig",
@@ -372,7 +378,8 @@ public class TestAvroStorage {
         verifyResults(createOutputName(),check);
     }
 
-    @Test public void testDates() throws Exception {
+    @Test
+    public void testDates() throws Exception {
       final String input = basedir + "data/avro/uncompressed/records.avro";
       final String check = basedir + "data/avro/uncompressed/recordsAsOutputByPigWithDates.avro";
       testAvroStorage(true, basedir + "code/pig/with_dates.pig",
@@ -384,8 +391,9 @@ public class TestAvroStorage {
         );
       verifyResults(createOutputName(),check);
     }
-    
-    @Test public void testLoadRecordsSpecifyFullSchema() throws Exception {
+
+    @Test
+    public void testLoadRecordsSpecifyFullSchema() throws Exception {
       final String input = basedir + "data/avro/uncompressed/records.avro";
       final String check = basedir + "data/avro/uncompressed/recordsAsOutputByPig.avro";
       final String schema = loadFileIntoString(basedir + "schema/records.avsc");
@@ -400,7 +408,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadRecordsSpecifyFullSchemaFromFile() throws Exception {
+    @Test
+    public void testLoadRecordsSpecifyFullSchemaFromFile() throws Exception {
       final String input = basedir + "data/avro/uncompressed/records.avro";
       final String check = basedir + "data/avro/uncompressed/recordsAsOutputByPig.avro";
       testAvroStorage(true, basedir + "code/pig/identity.pig",
@@ -414,7 +423,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadRecordsSpecifySubSchema() throws Exception {
+    @Test
+    public void testLoadRecordsSpecifySubSchema() throws Exception {
       final String input = basedir + "data/avro/uncompressed/records.avro";
       final String check = basedir + "data/avro/uncompressed/recordsSubSchema.avro";
       testAvroStorage(true, basedir + "code/pig/identity_ai1_ao2.pig",
@@ -426,9 +436,10 @@ public class TestAvroStorage {
                "AVROSTORAGE_IN_1",  loadFileIntoString(basedir + "schema/recordsSubSchema.avsc"))
         );
       verifyResults(createOutputName(),check);
-    }    
-    
-    @Test public void testLoadRecordsSpecifySubSchemaFromFile() throws Exception {
+    }
+
+    @Test
+    public void testLoadRecordsSpecifySubSchemaFromFile() throws Exception {
       final String input = basedir + "data/avro/uncompressed/records.avro";
       final String check = basedir + "data/avro/uncompressed/recordsSubSchema.avro";
       testAvroStorage(true, basedir + "code/pig/identity_blank_first_args.pig",
@@ -441,7 +452,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadRecordsSpecifySubSchemaFromExampleFile() throws Exception {
+    @Test
+    public void testLoadRecordsSpecifySubSchemaFromExampleFile() throws Exception {
       final String input = basedir + "data/avro/uncompressed/records.avro";
       final String check = basedir + "data/avro/uncompressed/recordsSubSchema.avro";
       testAvroStorage(true, basedir + "code/pig/identity_blank_first_args.pig",
@@ -454,7 +466,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadRecordsOfArrays() throws Exception {
+    @Test
+    public void testLoadRecordsOfArrays() throws Exception {
       final String input = basedir + "data/avro/uncompressed/recordsOfArrays.avro";
       final String check = input;
       testAvroStorage(true, basedir + "code/pig/identity_just_ao2.pig",
@@ -466,7 +479,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadRecordsOfArraysOfRecords() throws Exception {
+    @Test
+    public void testLoadRecordsOfArraysOfRecords() throws Exception {
       final String input = basedir + "data/avro/uncompressed/recordsOfArraysOfRecords.avro";
       final String check = input;
       testAvroStorage(true, basedir + "code/pig/identity_just_ao2.pig",
@@ -478,7 +492,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadRecordsWithEnums() throws Exception {
+    @Test
+    public void testLoadRecordsWithEnums() throws Exception {
       final String input = basedir + "data/avro/uncompressed/recordsWithEnums.avro";
       final String check = input;
       testAvroStorage(true, basedir + "code/pig/identity_just_ao2.pig",
@@ -490,7 +505,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadRecordsWithFixed() throws Exception {
+    @Test
+    public void testLoadRecordsWithFixed() throws Exception {
       final String input = basedir + "data/avro/uncompressed/recordsWithFixed.avro";
       final String check = input;
       testAvroStorage(true, basedir + "code/pig/identity_just_ao2.pig",
@@ -502,7 +518,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadRecordsWithMaps() throws Exception {
+    @Test
+    public void testLoadRecordsWithMaps() throws Exception {
       final String input = basedir + "data/avro/uncompressed/recordsWithMaps.avro";
       final String check = input;
       testAvroStorage(true, basedir + "code/pig/identity_just_ao2.pig",
@@ -514,7 +531,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadRecordsWithMapsOfRecords() throws Exception {
+    @Test
+    public void testLoadRecordsWithMapsOfRecords() throws Exception {
       final String input = basedir + "data/avro/uncompressed/recordsWithMapsOfRecords.avro";
       final String check = input;
       testAvroStorage(true, basedir + "code/pig/identity_just_ao2.pig",
@@ -526,7 +544,21 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadRecordsWithNullableUnions() throws Exception {
+    @Test
+    public void testLoadRecordsWithMapsOfArrayOfRecords() throws Exception {
+        final String input = basedir + "data/avro/uncompressed/recordsWithMapsOfArrayOfRecords.avro";
+        final String check = input;
+        testAvroStorage(true, basedir + "code/pig/identity_just_ao2.pig",
+            ImmutableMap.of(
+                "INFILE",             input,
+                "AVROSTORAGE_OUT_2", "-f " + basedir + "schema/recordsWithMapsOfArrayOfRecords.avsc",
+                "OUTFILE",            createOutputName())
+          );
+        verifyResults(createOutputName(),check);
+      }
+
+    @Test
+    public void testLoadRecordsWithNullableUnions() throws Exception {
       final String input = basedir + "data/avro/uncompressed/recordsWithNullableUnions.avro";
       final String check = input;
       testAvroStorage(true, basedir + "code/pig/identity_just_ao2.pig",
@@ -538,7 +570,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadDeflateCompressedRecords() throws Exception {
+    @Test
+    public void testLoadDeflateCompressedRecords() throws Exception {
       final String input = basedir + "data/avro/compressed/deflate/records.avro";
       final String check = basedir + "data/avro/uncompressed/recordsAsOutputByPig.avro";
       testAvroStorage(true, basedir + "code/pig/identity_ao2.pig",
@@ -551,7 +584,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadSnappyCompressedRecords() throws Exception {
+    @Test
+    public void testLoadSnappyCompressedRecords() throws Exception {
       final String input = basedir + "data/avro/compressed/snappy/records.avro";
       final String check = basedir + "data/avro/uncompressed/recordsAsOutputByPig.avro";
       testAvroStorage(true, basedir + "code/pig/identity_ao2.pig",
@@ -564,7 +598,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testStoreDeflateCompressedRecords() throws Exception {
+    @Test
+    public void testStoreDeflateCompressedRecords() throws Exception {
       final String input = basedir + "data/avro/uncompressed/records.avro";
       final String check = basedir + "data/avro/compressed/deflate/recordsAsOutputByPig.avro";
       testAvroStorage(true, basedir + "code/pig/identity_codec.pig",
@@ -580,7 +615,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testStoreSnappyCompressedRecords() throws Exception {
+    @Test
+    public void testStoreSnappyCompressedRecords() throws Exception {
       final String input = basedir + "data/avro/uncompressed/records.avro";
       final String check = basedir + "data/avro/compressed/snappy/recordsAsOutputByPig.avro";
       testAvroStorage(true, basedir + "code/pig/identity_codec.pig",
@@ -596,7 +632,8 @@ public class TestAvroStorage {
      verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadRecursiveRecords() throws Exception {
+    @Test
+    public void testLoadRecursiveRecords() throws Exception {
       final String input = basedir + "data/avro/uncompressed/recursiveRecord.avro";
       testAvroStorage(false, basedir + "code/pig/recursive_tests.pig",
           ImmutableMap.of(
@@ -608,7 +645,8 @@ public class TestAvroStorage {
         );
     }
 
-    @Test public void testLoadRecursiveRecordsOptionOn() throws Exception {
+    @Test
+    public void testLoadRecursiveRecordsOptionOn() throws Exception {
       final String input = basedir + "data/avro/uncompressed/recursiveRecord.avro";
       final String check = basedir + "data/avro/uncompressed/recordsSubSchemaNullable.avro";
       testAvroStorage(true, basedir + "code/pig/recursive_tests.pig",
@@ -622,7 +660,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadRecordsWithRepeatedSubRecords() throws Exception {
+    @Test
+    public void testLoadRecordsWithRepeatedSubRecords() throws Exception {
       final String input = basedir + "data/avro/uncompressed/recordWithRepeatedSubRecords.avro";
       final String check = basedir + "data/avro/uncompressed/recordWithRepeatedSubRecords.avro";
       testAvroStorage(true, basedir + "code/pig/identity_just_ao2.pig",
@@ -634,7 +673,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadDirectory() throws Exception {
+    @Test
+    public void testLoadDirectory() throws Exception {
       final String input = basedir + "data/avro/uncompressed/testdirectory";
       final String check = basedir + "data/avro/uncompressed/testDirectoryCounts.avro";
       testAvroStorage(true, basedir + "code/pig/directory_test.pig",
@@ -647,7 +687,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadGlob() throws Exception {
+    @Test
+    public void testLoadGlob() throws Exception {
       final String input = basedir + "data/avro/uncompressed/testdirectory/part-m-0000*";
       final String check = basedir + "data/avro/uncompressed/testDirectoryCounts.avro";
       testAvroStorage(true, basedir + "code/pig/directory_test.pig",
@@ -660,7 +701,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testPartialLoadGlob() throws Exception {
+    @Test
+    public void testPartialLoadGlob() throws Exception {
       final String input = basedir + "data/avro/uncompressed/testdirectory/part-m-0000{0,2,4,6}.avro";
       final String check = basedir + "data/avro/uncompressed/evenFileNameTestDirectoryCounts.avro";
       testAvroStorage(true, basedir + "code/pig/directory_test.pig",
@@ -673,7 +715,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testSeparatedByComma() throws Exception {
+    @Test
+    public void testSeparatedByComma() throws Exception {
         final String temp = basedir
                 + "data/avro/uncompressed/testdirectory/part-m-0000";
         StringBuffer sb = new StringBuffer();
@@ -692,7 +735,8 @@ public class TestAvroStorage {
         verifyResults(createOutputName(), check);
     }
 
-    @Test public void testDoubleUnderscore() throws Exception {
+    @Test
+    public void testDoubleUnderscore() throws Exception {
       final String input = basedir + "data/avro/uncompressed/records.avro";
       final String check = basedir + "data/avro/uncompressed/recordsWithDoubleUnderscores.avro";
       testAvroStorage(true, basedir + "code/pig/namesWithDoubleColons.pig",
@@ -705,7 +749,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testDoubleUnderscoreNoFlag() throws Exception {
+    @Test
+    public void testDoubleUnderscoreNoFlag() throws Exception {
       final String input = basedir + "data/avro/uncompressed/records.avro";
       testAvroStorage(false, basedir + "code/pig/namesWithDoubleColons.pig",
           ImmutableMap.of(
@@ -716,7 +761,8 @@ public class TestAvroStorage {
         );
     }
 
-    @Test public void testLoadArrays() throws Exception {
+    @Test
+    public void testLoadArrays() throws Exception {
       final String input = basedir + "data/avro/uncompressed/arrays.avro";
       final String check = basedir + "data/avro/uncompressed/arraysAsOutputByPig.avro";
       testAvroStorage(true, basedir + "code/pig/identity_ao2.pig",
@@ -729,7 +775,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadTrevniRecords() throws Exception {
+    @Test
+    public void testLoadTrevniRecords() throws Exception {
       final String input = basedir + "data/trevni/uncompressed/simpleRecordsTrevni.trevni";
       final String check = basedir + "data/avro/uncompressed/simpleRecordsTrevni.avro";
       testAvroStorage(true, basedir + "code/pig/trevni_to_avro.pig",
@@ -741,7 +788,8 @@ public class TestAvroStorage {
       verifyResults(createOutputName(),check);
     }
 
-    @Test public void testLoadAndSaveTrevniRecords() throws Exception {
+    @Test
+    public void testLoadAndSaveTrevniRecords() throws Exception {
       final String input = basedir + "data/trevni/uncompressed/simpleRecordsTrevni.trevni";
       final String check = basedir + "data/avro/uncompressed/simpleRecordsTrevni.avro";
 
@@ -866,7 +914,8 @@ public class TestAvroStorage {
                 new Comparator<GenericData.Record>() {
                     @Override
                     public int compare(Record o1, Record o2) {
-                        return o1.toString().compareTo(o2.toString());
+                        //return o1.compareTo(o2); throws AvroRuntimeException: Can't compare maps!
+                        return o1.equals(o2) ? 0 : o1.toString().compareTo(o2.toString());
                     }}
                 );
         FileSystem fs = FileSystem.getLocal(new Configuration());
