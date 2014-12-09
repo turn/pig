@@ -18,6 +18,8 @@
 
 Pig Change Log
 
+PIG-4338: Fix test failures with JDK8
+
 PIG-4053: TestMRCompiler succeeded with sun jdk 1.6 while failed with sun jdk 1.7
 
 Release 0.12.1 (unreleased changes)
