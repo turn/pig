@@ -30,6 +30,8 @@ Release 0.12.1 (unreleased changes)
 
 BUG FIXES
 
+PIG-2949: JsonLoader only reads arrays of objects (eyal via daijy)
+
 PIG-3413: JsonLoader fails the pig job in case of malformed json input (eyal via daijy)
 
 PIG-4355: Piggybank: XPath cant handle namespace in xpath, nor can it return more than one match
