@@ -30,6 +30,9 @@ Release 0.12.1 (unreleased changes)
 
 BUG FIXES
 
+PIG-4355: Piggybank: XPath cant handle namespace in xpath, nor can it return more than one match
+ (cavanaug via daijy)
+
 PIG-3664: Piggy Bank XPath UDF can't be called (nezihyigitbasi via daijy)
 
 PIG-4219: When parsing a schema, pig drops tuple inside of Bag if it contains only one field (lbendig via daijy)
