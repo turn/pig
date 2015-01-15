@@ -271,14 +271,6 @@ public class HExecutionEngine {
                     pigOptimizerRulesDisabled))));
         }
 
-        if( ! Boolean.valueOf(this.pigContext.getProperties().getProperty(
-            PigConstants.PIG_EXEC_OLD_PART_FILTER_OPTIMIZER, "false"))){
-            // Turn off the old partition filter optimizer
-            disabledOptimizerRules.add("PartitionFilterOptimizer");
-        } else {
-            disabledOptimizerRules.add("NewPartitionFilterOptimizer");
-        }
-
         if (pigContext.inIllustrator) {
             disabledOptimizerRules.add("MergeForEach");
             disabledOptimizerRules.add("PartitionFilterOptimizer");
