@@ -27,7 +27,7 @@
   
   <groupId>com.cloudera.cdh</groupId>
   <artifactId>pig-root</artifactId>
-  <version>0.12.0-cdh5.3.6-SNAPSHOT-SNAPSHOT</version>
+  <version>0.12.0-cdh5.3.6-SNAPSHOT</version>
   <packaging>pom</packaging>
   
   <description>Pig root</description>
