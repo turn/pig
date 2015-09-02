@@ -50,6 +50,7 @@ import org.antlr.runtime.RecognitionException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -332,6 +333,10 @@ static int run(String args[], PigProgressNotificationListener listener) {
                     execType = ExecType.fromString(opts.getValStr());
                     } catch (IOException e) {
                         throw new RuntimeException("ERROR: Unrecognized exectype.", e);
+                    }
+
+                    if (opts.getValStr().toLowerCase().contains("local")) {
+                        UserGroupInformation.setConfiguration(new Configuration(false));
                     }
                 break;
 
