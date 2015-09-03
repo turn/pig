@@ -29,6 +29,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.StringReader;
+import java.io.Writer;
 import java.text.ParseException;
 import java.util.AbstractList;
 import java.util.ArrayList;
@@ -534,7 +535,7 @@ static int run(String args[], PigProgressNotificationListener listener) {
             // Interactive
             mode = ExecMode.SHELL;
           //Reader is created by first loading "pig.load.default.statements" or .pigbootup file if available
-            ConsoleReader reader = new ConsoleReader(Utils.getCompositeStream(System.in, properties), new OutputStreamWriter(System.out));
+            ConsoleReader reader = new ConsoleReaderWithParamSub(Utils.getCompositeStream(System.in, properties), new OutputStreamWriter(System.out), pigContext);
             reader.setDefaultPrompt("grunt> ");
             final String HISTORYFILE = ".pig_history";
             String historyFile = System.getProperty("user.home") + File.separator  + HISTORYFILE;
@@ -1038,6 +1039,22 @@ throws IOException {
     return (totalCount > 0 && failCount == totalCount) ? ReturnCode.FAILURE
             : (failCount > 0) ? ReturnCode.PARTIAL_FAILURE
                     : ReturnCode.SUCCESS;
+}
+
+static class ConsoleReaderWithParamSub extends ConsoleReader {
+    PigContext pc;
+    ConsoleReaderWithParamSub(InputStream in, Writer out, PigContext pigContext) throws IOException {
+        super(in, out);
+        pc = pigContext;
+    }
+
+    @Override
+    public String readLine() throws IOException {
+        String line = super.readLine();
+        String paramSubLine = pc.doParamSubstitution(new BufferedReader(new StringReader(line)));
+        return paramSubLine;
+    }
+
 }
 
 }
