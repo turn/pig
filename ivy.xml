@@ -481,6 +481,10 @@
       <artifact name="htrace-core" type="jar"/>
     </dependency>
 
+    <dependency org="org.apache.htrace" name="htrace-core4" rev="4.0.1-incubating" conf="hbase95->master">
+      <artifact name="htrace-core4" type="jar"/>
+    </dependency>
+
     <dependency org="org.apache.curator" name="curator-framework" rev="2.6.0" conf="hadoop23->master"/>
     <dependency org="org.apache.curator" name="curator-client" rev="2.6.0" conf="hadoop23->master"/>
     <dependency org="org.apache.curator" name="curator-recipes" rev="2.6.0" conf="hadoop23->master"/>
