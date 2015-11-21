@@ -489,9 +489,6 @@
     <dependency org="org.apache.curator" name="curator-client" rev="2.6.0" conf="hadoop23->master"/>
     <dependency org="org.apache.curator" name="curator-recipes" rev="2.6.0" conf="hadoop23->master"/>
 
-    <!-- CLOUDERA BUILD -->
-    <dependency org="org.apache.hadoop" name="cloudera-netty-all" rev="${hadoop-common.version}" conf="hadoop23->master"/>
-
     <!-- for TestHBaseStorage -->
     <dependency org="com.github.stephenc.high-scale-lib" name="high-scale-lib" rev="${high-scale-lib.version}"
        conf="test->default"/>
