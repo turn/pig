@@ -363,7 +363,12 @@ public class ScriptState {
     }
 
     private String getScriptHash() throws FrontendException {
-      return pigContext.getExecutionEngine().getNewPlan().getHash();
+        if (pigContext.getExecutionEngine() != null &&
+            pigContext.getExecutionEngine().getNewPlan() != null) {
+            return pigContext.getExecutionEngine().getNewPlan().getHash();
+        }
+
+        return "";
     }
 
     private boolean isPlanSerializationEnabled() {
