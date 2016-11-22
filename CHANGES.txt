@@ -61,6 +61,8 @@ PIG-3174: Remove rpm and deb artifacts from build.xml (gates)
 
 IMPROVEMENTS
 
+PIG-5025: Fix flaky test failures in TestLoad.java (szita via rohini)
+
 PIG-4787: Log JSONLoader exception while parsing records (rohini)
 
 PIG-3730: Performance issue in SelfSpillBag (rajesh.balamohan via rohini)
