@@ -41,7 +41,7 @@ public class TestPigProgressReporting {
 
         try{
             // Override the timeout as 10 secs
-            cluster.setProperty("mapred.task.timeout", "10000");
+            cluster.setProperty("mapred.task.timeout", "15000");
 
             Util.createInputFile(cluster, "a.txt", new String[] { "dummy"});
 
