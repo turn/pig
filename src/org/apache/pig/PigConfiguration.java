@@ -81,13 +81,13 @@ public class PigConfiguration {
      * will be set in the environment.
      */
     public static final String PIG_STREAMING_ENVIRONMENT = "pig.streaming.environment";
-    
+
     /**
      * This key is used to define the default load func. Pig will fallback on PigStorage
      * as default in case this is undefined.
      */
     public static final String PIG_DEFAULT_LOAD_FUNC = "pig.default.load.func";
-    
+
     /**
      * This key is used to define the default store func. Pig will fallback on PigStorage
      * as default in case this is undefined.
@@ -117,4 +117,11 @@ public class PigConfiguration {
      * TFileStorage only support gzip and lzo.
      */
     public static final String PIG_TEMP_FILE_COMPRESSION_CODEC = "pig.tmpfilecompression.codec";
+
+    /**
+     * If set to false, automatic schema disambiguation gets disabled i.e. group::name will be just name
+     */
+    public static final String PIG_STORE_SCHEMA_DISAMBIGUATE = "pig.store.schema.disambiguate";
+
+    public static final String PIG_STORE_SCHEMA_DISAMBIGUATE_DEFAULT = "true";
 }

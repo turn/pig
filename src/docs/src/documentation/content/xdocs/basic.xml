@@ -5378,7 +5378,9 @@ DUMP X;
 <section id="disambiguate">
 <title>Disambiguate Operator</title>
 
-<p>Use the disambiguate operator ( :: ) to identify field names after JOIN, COGROUP, CROSS, or FLATTEN operators.</p>
+<p>After JOIN, COGROUP, CROSS, or FLATTEN operations, the field names have the orginial alias and the disambiguate
+   operator ( :: ) prepended in the schema. The disambiguate operator is used to identify field names in case there
+   is a ambiguity.</p>
 
 <p>In this example, to disambiguate y,  use A::y or B::y.  In cases where there is no ambiguity, such as z, the :: is not necessary but is still supported.</p>
 
@@ -5386,15 +5388,21 @@ DUMP X;
 A = load 'data1' as (x, y);
 B = load 'data2' as (x, y, z);
 C = join A by x, B by x;
-D = foreach C generate y; -- which y?
+D = foreach C generate A::y, z; -- Cannot simply refer to y as it can refer to A::y or B::y
 </source>
+<p> In cases where the schema is stored as part of the StoreFunc like PigStorage, JsonStorage, AvroStorage or OrcStorage,
+   users generally have to use an extra FOREACH before STORE to rename the field names and remove the disambiguate
+   operator from the names. To automatically remove the disambiguate operator from the schema for the STORE operation,
+   the <i>pig.store.schema.disambiguate</i> Pig property can be set to "false". It is the responsibility of the user
+   to make sure that there is no conflict in the field names when using this setting.
+</p>
 </section>
 
     <!-- =================================================================== -->  
    <section  id="flatten">
    <title>Flatten Operator</title>
    <p>The FLATTEN operator looks like a UDF syntactically, but it is actually an operator that changes the structure of tuples 
-   and bags in a way that a UDF cannot. Flatten un-nests tuples as well as bags. The idea is the same, but the operation and 
+   and bags in a way that a UDF cannot. Flatten un-nests tuples as well as bags. The idea is the same, but the operation and
    result is different for each type of structure.</p>
 
    <p>For tuples, flatten substitutes the fields of a tuple in place of the tuple. For example, consider a relation that has a tuple 
@@ -5405,7 +5413,7 @@ D = foreach C generate y; -- which y?
    tuples (b,c) and (d,e). When we remove a level of nesting in a bag, sometimes we cause a cross product to happen. 
    For example, consider a relation that has a tuple of the form (a, {(b,c), (d,e)}), commonly produced by the GROUP operator. 
    If we apply the expression GENERATE $0, flatten($1) to this tuple, we will create new tuples: (a, b, c) and (a, d, e).</p>
-   
+
    <p>Also note that the flatten of empty bag will result in that row being discarded; no output is generated. 
    (See also <a href="perf.html#nulls">Drop Nulls Before a Join</a>.) </p>
    
@@ -6488,7 +6496,7 @@ D = FOREACH C GENERATE flatten(A), flatten(b);
 E = GROUP D BY A::x;
 ……
 </source>
-   
+
    </section>
    
    <section id="nestedblock">
@@ -6500,7 +6508,7 @@ session = load 'session' as (uid, region);
 C = cogroup user by uid, session by uid;
 D = foreach C {
     crossed = cross user, session;
-    generate crossed;  
+    generate crossed;
 </source>
 <p>In this example FOREACH is nested to the second level.</p>
 <source>
@@ -6971,7 +6979,7 @@ public class SimpleCustomPartitioner extends Partitioner &lt;PigNullableWritable
                <p>Use to perform replicated joins (see <a href="perf.html#Replicated-Joins">Replicated Joins</a>).</p>
             </td>
          </tr>
-         
+
          <tr>
             <td>
                <p>'skewed'</p>
@@ -7198,7 +7206,7 @@ DUMP X;
                <p>Only left outer join is supported for replicated joins.</p>
             </td>
          </tr>
-         
+
                   <tr>
             <td>
                <p>'skewed'</p>
@@ -8463,9 +8471,9 @@ A union B: null
   
 <p>Union columns with incompatible types result in a bytearray type: </p>
 <source>
-A: (a1:long, a2:long) 
-B: (b1:(b11:long, b12:long), b2:long) 
-A union B: (a1:bytearray, a2:long) 
+A: (a1:long, a2:long)
+B: (b1:(b11:long, b12:long), b2:long)
+A union B: (a1:bytearray, a2:long)
 </source>
 
 <p>Union columns of compatible type will produce an "escalate" type. 
@@ -8959,7 +8967,7 @@ B = FOREACH A GENERATE myFunc($0);
    <p id="register-glob">Additionally, JAR files stored in local file systems can be specified as a glob pattern using “*”. Pig will search for matching jars in the local file system, either the relative path (relative to your working directory) or the absolute path. Pig will pick up all JARs that match the glob.</p>
    
    <p><strong>Command Line</strong></p>
-   <p>You can register additional files (to use with your Pig script) via PIG_OPTS environment variable using the -Dpig.additional.jars.comma option. 
+   <p>You can register additional files (to use with your Pig script) via PIG_OPTS environment variable using the -Dpig.additional.jars.comma option.
 For more information see <a href="udf.html">User Defined Functions</a>.</p>
    </section>
    
@@ -8994,7 +9002,7 @@ register jars/*.jar
 </source>
    </section>
    </section>
-   </section>  
+   </section>
 
   </body>
 </document>
