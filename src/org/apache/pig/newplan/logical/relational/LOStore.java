@@ -26,6 +26,8 @@ import org.apache.pig.newplan.PlanVisitor;
 
 public class LOStore extends LogicalRelationalOperator {
 
+    static final long serialVersionUID = 5555416258751933145L;
+
     private final FileSpec output;
 
     // If we know how to reload the store, here's how. The lFile
