@@ -32,6 +32,8 @@ BUG FIXES
 
 PIG-3567: LogicalPlanPrinter throws OOM for large scripts (aniket486)
 
+PIG-3655: BinStorage and InterStorage approach to record markers is broken (szita)
+
 PIG-4052: TestJobControlSleep, TestInvokerSpeed are unreliable (daijy)
 
 PIG-3818: PIG-2499 is accidently reverted (daijy)
