@@ -746,7 +746,14 @@
         <copy file="${output.jarfile.withdependencies}" tofile="${output.jarfile.backcompat}"/>
         <antcall target="include-meta" inheritRefs="true" inheritall="true"/>
     </target>
-
+	
+	<target name="turnver" description="Create pig, pig withdependencies and pig withouthadoop jar for turn">
+		<echo message = "${turnver}"/>
+		<propertyfile file="build.properties">
+			<entry key="pig.version" value="${turnver}"/>
+			<entry key="version" value="${turnver}"/>
+		</propertyfile>			
+	</target>
     <target name="include-meta" if="isHadoop23">
         <copy todir="${build.classes}/META-INF">
             <fileset dir="${src.dir}/META-INF" includes="**"/>
