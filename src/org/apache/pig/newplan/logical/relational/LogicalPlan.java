@@ -32,6 +32,7 @@ import org.apache.pig.newplan.OperatorPlan;
 import org.apache.pig.newplan.logical.DotLOPrinter;
 import org.apache.pig.newplan.logical.optimizer.LogicalPlanPrinter;
 
+import com.google.common.base.Charsets;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 
@@ -137,7 +138,7 @@ public class LogicalPlan extends BaseOperatorPlan {
     public String getHash() throws FrontendException {
         HashFunction hf = Hashing.md5();
         Hasher h = hf.newHasher();
-        h.putString(getLogicalPlanString());
+        h.putString(getLogicalPlanString(), Charsets.UTF_16LE);
         return h.hash().toString();
     }
  
