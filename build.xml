@@ -293,17 +293,12 @@
     <!-- JVM version validation -->
     <target name="jvm-check">
         <property name="javaVersion" value="1.7"/>
-        <property name="javaUpdateVersion" value="1.8"/>
 
         <property name="requiredJavaVersion" value="xx${javaVersion}"/>
-        <property name="requiredUpdateJavaVersion" value="xx${javaUpdateVersion}"/>		
         <property name="currentJavaVersion" value="xx${java.version}"/>
         <condition property="jvm.fail">
             <not>
-				<or>
-                	<contains string="${currentJavaVersion}" substring="${requiredJavaVersion}"/>
-                	<contains string="${currentJavaVersion}" substring="${requiredUpdateJavaVersion}"/>
-				</or>					
+                <contains string="${currentJavaVersion}" substring="${requiredJavaVersion}"/>
             </not>
         </condition>
         <fail if="jvm.fail">
