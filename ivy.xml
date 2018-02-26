@@ -477,10 +477,6 @@
       <exclude org="org.mortbay.jetty" module="*" />
     </dependency>
 
-    <dependency org="org.apache.htrace" name="htrace-core" rev="3.2.0-incubating" conf="hbase95->master">
-      <artifact name="htrace-core" type="jar"/>
-    </dependency>
-
     <dependency org="org.apache.htrace" name="htrace-core4" rev="4.0.1-incubating" conf="hbase95->master">
       <artifact name="htrace-core4" type="jar"/>
     </dependency>
