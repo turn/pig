@@ -36,6 +36,7 @@ import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceOpe
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.NativeMapReduceOper;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POStore;
+import org.apache.pig.backend.hadoop.executionengine.shims.HadoopShims;
 import org.apache.pig.impl.PigContext;
 import org.apache.pig.tools.pigstats.PigStats.JobGraph;
 
@@ -51,7 +52,7 @@ public abstract class PigStatsUtil {
     public static final String TASK_COUNTER_GROUP 
             = "org.apache.hadoop.mapred.Task$Counter";
     public static final String FS_COUNTER_GROUP 
-            = "FileSystemCounters";
+            = HadoopShims.getFsCounterGroupName();
     public static final String MAP_INPUT_RECORDS 
             = "MAP_INPUT_RECORDS";
     public static final String MAP_OUTPUT_RECORDS 
@@ -162,7 +163,8 @@ public abstract class PigStatsUtil {
             JobControlCompiler jcc, MROperPlan plan) {
         SimplePigStats ps = (SimplePigStats)PigStats.start();
         ps.start(pc, client, jcc, plan);
-        
+
+        ScriptState.get().emitInitialPlanNotification(plan);
         ScriptState.get().emitLaunchStartedNotification(plan.size());
     }
      
@@ -186,7 +188,18 @@ public abstract class PigStatsUtil {
                 ps.getNumberSuccessfulJobs());
         if (display) ps.display();
     }
-    
+
+    /**
+     * Add stats for a new Job, which doesn't yet need to be completed.
+     *
+     * @param job the job being run
+     * @return JobStats for the job
+     */
+    public static JobStats addJobStats(Job job) {
+        SimplePigStats ps = (SimplePigStats)PigStats.get();
+        return ps.addJobStats(job);
+    }
+
     /**
      * Returns an empty PigStats object
      * 
@@ -264,10 +277,14 @@ public abstract class PigStatsUtil {
         PigStats.get().setErrorCode(code);
     }
     
+    public static void setErrorThrowable(Throwable t) {
+        PigStats.get().setErrorThrowable(t);
+    }
+
     public static void setBackendException(Job job, Exception e) {
         ((SimplePigStats)PigStats.get()).setBackendException(job, e);
     }
-    
+
     private static Pattern pattern = Pattern.compile("tmp(-)?[\\d]{1,10}$");
     
     public static boolean isTempFile(String fileName) {

@@ -22,14 +22,9 @@ import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 
 import org.apache.commons.logging.Log;
@@ -40,14 +35,14 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.Result;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POStream;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.impl.io.BufferedPositionedInputStream;
-import org.apache.pig.impl.io.FileLocalizer;
 import org.apache.pig.impl.streaming.InputHandler.InputType;
 import org.apache.pig.impl.streaming.OutputHandler.OutputType;
+import org.apache.pig.impl.util.UDFContext;
 
 /**
  * {@link ExecutableManager} manages an external executable which processes data
  * in a Pig query.
- * 
+ *
  * The <code>ExecutableManager</code> is responsible for startup/teardown of
  * the external process and also for managing it. It feeds input records to the
  * executable via it's <code>stdin</code>, collects the output records from
@@ -55,25 +50,21 @@ import org.apache.pig.impl.streaming.OutputHandler.OutputType;
  * <code>stdout</code>.
  */
 public class ExecutableManager {
-    private static final Log LOG = LogFactory.getLog(ExecutableManager.class
-            .getName());
+    private static final Log LOG = LogFactory.getLog(ExecutableManager.class);
     private static final int SUCCESS = 0;
-    private static final String PATH = "PATH";
-    private static final String BASH = "bash";
     private static final Result EOS_RESULT = new Result(POStatus.STATUS_EOS, null);
-    
+
     protected StreamingCommand command; // Streaming command to be run
-    String argvAsString; // Parsed commands
 
     Process process; // Handle to the process
     protected int exitCode = -127; // Exit code of the process
 
     protected DataOutputStream stdin; // stdin of the process
     ProcessInputThread stdinThread; // thread to send input to process
-    
+
     ProcessOutputThread stdoutThread; // thread to get process stdout
     InputStream stdout; // stdout of the process
-    
+
     ProcessErrorThread stderrThread; // thread to get process stderr
     InputStream stderr; // stderr of the process
 
@@ -90,7 +81,7 @@ public class ExecutableManager {
     protected volatile Throwable outerrThreadsError;
     private POStream poStream;
     private ProcessInputThread fileInputThread;
-    
+
     /**
      * Create a new {@link ExecutableManager}.
      */
@@ -99,7 +90,7 @@ public class ExecutableManager {
 
     /**
      * Configure and initialize the {@link ExecutableManager}.
-     * 
+     *
      * @param stream POStream operator
      * @throws IOException
      * @throws ExecException
@@ -107,12 +98,6 @@ public class ExecutableManager {
     public void configure(POStream stream) throws IOException, ExecException {
         this.poStream = stream;
         this.command = stream.getCommand();
-        String[] argv = this.command.getCommandArgs();
-        argvAsString = "";
-        for (String arg : argv) {
-            argvAsString += arg;
-            argvAsString += " ";
-        }
 
         // Create the input/output handlers
         this.inputHandler = HandlerFactory.createInputHandler(command);
@@ -121,7 +106,7 @@ public class ExecutableManager {
 
     /**
      * Close and cleanup the {@link ExecutableManager}.
-     * @throws IOException 
+     * @throws IOException
      */
     public void close() throws IOException {
         // Close the InputHandler, which in some cases lets the process
@@ -140,7 +125,7 @@ public class ExecutableManager {
             LOG.error("Unexpected exception while waiting for streaming binary to complete", ie);
             killProcess(process);
         }
-        
+
         // Wait for stdout thread to complete
         try {
             if (stdoutThread != null) {
@@ -151,7 +136,7 @@ public class ExecutableManager {
             LOG.error("Unexpected exception while waiting for output thread for streaming binary to complete", ie);
             killProcess(process);
         }
-        
+
         // Wait for stderr thread to complete
         try {
             if (stderrThread != null) {
@@ -173,12 +158,12 @@ public class ExecutableManager {
 
             // Trigger the outputHandler
             outputHandler.bindTo("", null, 0, -1);
-            
+
             // start thread to process output from executable's stdout
             stdoutThread = new ProcessOutputThread(outputHandler, poStream);
             stdoutThread.start();
         }
-        
+
         // Check if there was a problem with the managed process
         if (outerrThreadsError != null) {
             LOG.error("Output/Error thread failed with: "
@@ -191,69 +176,27 @@ public class ExecutableManager {
      *  Helper function to close input and output streams
      *  to the process and kill it
      * @param process the process to be killed
-     * @throws IOException 
+     * @throws IOException
      */
     private void killProcess(Process process) throws IOException {
-        inputHandler.close(process);
-        outputHandler.close();
-        process.destroy();
-    }
-
-    /**
-     * Set up the run-time environment of the managed process.
-     * 
-     * @param pb
-     *            {@link ProcessBuilder} used to exec the process
-     */
-    protected void setupEnvironment(ProcessBuilder pb) {
-        String separator = ":";
-        Map<String, String> env = pb.environment();
-
-        // Add the current-working-directory to the $PATH
-        File dir = pb.directory();
-        String cwd = (dir != null) ? dir.getAbsolutePath() : System
-                .getProperty("user.dir");
-
-        if (System.getProperty("os.name").toUpperCase().startsWith("WINDOWS")) {
-            String unixCwd = FileLocalizer.parseCygPath(cwd, FileLocalizer.STYLE_UNIX);
-            if (unixCwd == null)
-                throw new RuntimeException(
-                        "Can not convert Windows path to Unix path under cygwin");
-            cwd = unixCwd;
+        if (process != null) {
+            inputHandler.close(process);
+            outputHandler.close();
+            process.destroy();
         }
-
-        String envPath = env.get(PATH);
-        if (envPath == null) {
-            envPath = cwd;
-        } else {
-            envPath = envPath + separator + cwd;
-        }
-        env.put(PATH, envPath);
     }
 
     /**
      * Start execution of the external process.
-     * 
+     *
      * This takes care of setting up the environment of the process and also
      * starts ProcessErrorThread to process the <code>stderr</code> of
      * the managed process.
-     * 
+     *
      * @throws IOException
      */
     protected void exec() throws IOException {
-        // Set the actual command to run with 'bash -c exec ...'
-        List<String> cmdArgs = new ArrayList<String>();
-        cmdArgs.add(BASH);
-        cmdArgs.add("-c");
-        StringBuffer sb = new StringBuffer();
-        sb.append("exec ");
-        sb.append(argvAsString);
-        cmdArgs.add(sb.toString());
-
-        // Start the external process
-        ProcessBuilder processBuilder = new ProcessBuilder(cmdArgs
-                .toArray(new String[cmdArgs.size()]));
-        setupEnvironment(processBuilder);
+        ProcessBuilder processBuilder = StreamingUtil.createProcess(this.command);
         process = processBuilder.start();
         LOG.debug("Started the process for command: " + command);
 
@@ -273,7 +216,7 @@ public class ExecutableManager {
             // Bind the stdout to the OutputHandler
             outputHandler.bindTo("", new BufferedPositionedInputStream(stdout),
                     0, Long.MAX_VALUE);
-            
+
             // start thread to process output from executable's stdout
             stdoutThread = new ProcessOutputThread(outputHandler, poStream);
             stdoutThread.start();
@@ -282,16 +225,20 @@ public class ExecutableManager {
 
     /**
      * Start execution of the {@link ExecutableManager}.
-     * 
+     *
      * @throws IOException
      */
     public void run() throws IOException {
         // Check if we need to exec the process NOW ...
         if (inputHandler.getInputType() == InputType.ASYNCHRONOUS) {
-            // start the thread to handle input
-            fileInputThread = new ProcessInputThread(inputHandler, poStream);
+            // start the thread to handle input. we pass the UDFContext to the
+            // fileInputThread because when input type is asynchronous, the
+            // exec() is called by fileInputThread, and it needs to access to
+            // the UDFContext.
+            fileInputThread = new ProcessInputThread(
+                    inputHandler, poStream, UDFContext.getUDFContext());
             fileInputThread.start();
-            
+
             // If Input type is ASYNCHRONOUS that means input to the
             // streaming binary is from a file - that means we cannot exec
             // the process till the input file is completely written. This
@@ -307,7 +254,7 @@ public class ExecutableManager {
         inputHandler.bindTo(stdin);
 
         // Start the thread to send input to the executable's stdin
-        stdinThread = new ProcessInputThread(inputHandler, poStream);
+        stdinThread = new ProcessInputThread(inputHandler, poStream, null);
         stdinThread.start();
     }
 
@@ -319,18 +266,29 @@ public class ExecutableManager {
 
         InputHandler inputHandler;
         private POStream poStream;
+        private UDFContext udfContext;
         private BlockingQueue<Result> binaryInputQueue;
 
-        ProcessInputThread(InputHandler inputHandler, POStream poStream) {
+        ProcessInputThread(InputHandler inputHandler, POStream poStream, UDFContext udfContext) {
             setDaemon(true);
             this.inputHandler = inputHandler;
             this.poStream = poStream;
+            // a copy of UDFContext passed from the ExecutableManager thread
+            this.udfContext = udfContext;
             // the input queue from where this thread will read
-            // input tuples 
+            // input tuples
             this.binaryInputQueue = poStream.getBinaryInputQueue();
         }
 
+        @Override
         public void run() {
+            // If input type is asynchronous, set the udfContext of the current
+            // thread to the copy of ExecutableManager thread's udfContext. This
+            // is necessary because the exec() method is called by the current
+            // thread (fileInputThread) instead of the ExecutableManager thread.
+            if (inputHandler.getInputType() == InputType.ASYNCHRONOUS && udfContext != null) {
+                UDFContext.setUdfContext(udfContext);
+            }
             try {
                 // Read tuples from the previous operator in the pipeline
                 // and pass it to the executable
@@ -339,8 +297,8 @@ public class ExecutableManager {
                     inp = binaryInputQueue.take();
                     synchronized (poStream) {
                         // notify waiting producer
-                        // the if check is to keep "findbugs" 
-                        // happy 
+                        // the if check is to keep "findbugs"
+                        // happy
                         if(inp != null)
                             poStream.notifyAll();
                     }
@@ -365,7 +323,7 @@ public class ExecutableManager {
                         Tuple t = null;
                         try {
                             t = (Tuple) inp.result;
-                            inputHandler.putNext(t);                            
+                            inputHandler.putNext(t);
                         } catch (IOException e) {
                             // if input type is synchronous then it could
                             // be related to the process terminating
@@ -391,7 +349,7 @@ public class ExecutableManager {
                                 // Generally the ProcessOutputThread would do this but now
                                 // we should do it here since neither the process nor the
                                 // ProcessOutputThread will ever be spawned
-                                Result res = new Result(POStatus.STATUS_ERR, 
+                                Result res = new Result(POStatus.STATUS_ERR,
                                         "Exception while trying to write to stream binary's input" + e.getMessage());
                                 sendOutput(poStream.getBinaryOutputQueue(), res);
                                 throw e;
@@ -402,17 +360,16 @@ public class ExecutableManager {
                     }
                 }
             } catch (Throwable t) {
-                
-                
                 // Note that an error occurred
                 outerrThreadsError = t;
-                LOG.error(t);
+                LOG.error( "Error while reading from POStream and " +
+                           "passing it to the streaming process", t);
                 try {
                     killProcess(process);
                 } catch (IOException ioe) {
                     LOG.warn(ioe);
                 }
-           }
+            }
         }
     }
 
@@ -430,7 +387,7 @@ public class ExecutableManager {
             }
         }
     }
-    
+
     /**
      * The thread which gets output from the streaming binary and puts it onto
      * the binary output Queue of POStream
@@ -448,6 +405,7 @@ public class ExecutableManager {
             this.binaryOutputQueue = poStream.getBinaryOutputQueue();
         }
 
+        @Override
         public void run() {
             try {
                 // Read tuples from the executable and send it to
@@ -464,12 +422,12 @@ public class ExecutableManager {
                 // Note that an error occurred
                 outerrThreadsError = t;
                 LOG.error("Caught Exception in OutputHandler of Streaming binary, " +
-                		"sending error signal to pipeline", t);
+                        "sending error signal to pipeline", t);
                 // send ERROR to POStream
                 try {
                     Result res = new Result();
-                    res.result = "Error reading output from Streaming binary:" + 
-                    "'" + argvAsString + "':" + t.getMessage();
+                    res.result = "Error reading output from Streaming binary:" +
+                            "'" + command.toString() + "':" + t.getMessage();
                     res.returnStatus = POStatus.STATUS_ERR;
                     sendOutput(binaryOutputQueue, res);
                     killProcess(process);
@@ -481,7 +439,7 @@ public class ExecutableManager {
 
         void processOutput(Tuple t) {
             Result res = new Result();
-            
+
             if (t != null) {
                 // we have a valid tuple to pass back
                 res.result = t;
@@ -498,12 +456,12 @@ public class ExecutableManager {
                         killProcess(process);
                     } catch (IOException e) {
                         LOG.warn("Exception trying to kill process while processing null output " +
-                        		"from binary", e);
-                        
+                                "from binary", e);
+
                     }
                     // signal error
-                    String errMsg = "Failure while waiting for process (" + argvAsString + ")" +
-                    ie.getMessage(); 
+                    String errMsg = "Failure while waiting for process (" + command.toString() + ")" +
+                            ie.getMessage();
                     LOG.error(errMsg, ie);
                     res.result = errMsg;
                     res.returnStatus = POStatus.STATUS_ERR;
@@ -515,27 +473,27 @@ public class ExecutableManager {
                     res = EOS_RESULT;
                 } else {
                     // signal Error
-                    
-                    String errMsg = "'" + argvAsString + "'" + " failed with exit status: " 
-                    + exitCode; 
+
+                    String errMsg = "'" + command.toString() + "'" + " failed with exit status: "
+                            + exitCode;
                     LOG.error(errMsg);
                     res.result = errMsg;
                     res.returnStatus = POStatus.STATUS_ERR;
                 }
             }
             sendOutput(binaryOutputQueue, res);
-            
+
         }
     }
-    
-    
-    
+
+
+
     /**
      * Workhorse to process the stderr stream of the managed process.
-     * 
+     *
      * By default <code>ExecuatbleManager</code> just sends out the received
      * error message to the <code>stderr</code> of itself.
-     * 
+     *
      * @param error
      *            error message from the managed process.
      */
@@ -550,6 +508,7 @@ public class ExecutableManager {
             setDaemon(true);
         }
 
+        @Override
         public void run() {
             try {
                 String error;

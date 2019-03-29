@@ -26,9 +26,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.pig.PigException;
 import org.apache.pig.backend.executionengine.ExecException;
-import org.apache.pig.data.DataType;
-import org.apache.pig.data.Tuple;
-import org.apache.pig.data.TupleFactory;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.POStatus;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.Result;
@@ -36,11 +33,14 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.expressionOpe
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.expressionOperators.POProject;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.PhyPlanVisitor;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.PhysicalPlan;
+import org.apache.pig.data.DataType;
+import org.apache.pig.data.Tuple;
+import org.apache.pig.data.TupleFactory;
 import org.apache.pig.impl.io.PigNullableWritable;
-import org.apache.pig.impl.plan.OperatorKey;
 import org.apache.pig.impl.plan.NodeIdGenerator;
-import org.apache.pig.impl.plan.VisitorException;
+import org.apache.pig.impl.plan.OperatorKey;
 import org.apache.pig.impl.plan.PlanException;
+import org.apache.pig.impl.plan.VisitorException;
 import org.apache.pig.pen.util.ExampleTuple;
 
 /**
@@ -113,6 +113,13 @@ public class POLocalRearrange extends PhysicalOperator {
     // off the "key" correctly to stitch together the
     // "value"
     private boolean isKeyTuple = false;
+    // marker to note that the tuple "key" is compound
+    // in nature. For example:
+    // group a by (a0, a1);
+    // The group key is a tuple of two fields, isKeyCompound is on
+    // group a by a0; -- a0 is a tuple
+    // The group key is a tuple of one field, isKeyCompound is off
+    private boolean isKeyCompound = false;
     private boolean isSecondaryKeyTuple = false;
 
     private int mProjectedColsMapSize = 0;
@@ -248,7 +255,7 @@ public class POLocalRearrange extends PhysicalOperator {
      * format, i.e, (key,indexedTuple(value))
      */
     @Override
-    public Result getNext(Tuple t) throws ExecException {
+    public Result getNextTuple() throws ExecException {
 
         Result inp = null;
         Result res = ERR_RESULT;
@@ -289,9 +296,12 @@ public class POLocalRearrange extends PhysicalOperator {
                 case DataType.FLOAT:
                 case DataType.INTEGER:
                 case DataType.LONG:
+                case DataType.BIGINTEGER:
+                case DataType.BIGDECIMAL:
+                case DataType.DATETIME:
                 case DataType.MAP:
                 case DataType.TUPLE:
-                    res = op.getNext(getDummy(op.getResultType()), op.getResultType());
+                    res = op.getNext(op.getResultType());
                     break;
                 default:
                     log.error("Invalid result type: " + DataType.findType(op.getResultType()));
@@ -316,12 +326,15 @@ public class POLocalRearrange extends PhysicalOperator {
                     case DataType.BYTEARRAY:
                     case DataType.CHARARRAY:
                     case DataType.DOUBLE:
+                    case DataType.BIGINTEGER:
+                    case DataType.BIGDECIMAL:
                     case DataType.FLOAT:
                     case DataType.INTEGER:
                     case DataType.LONG:
+                    case DataType.DATETIME:
                     case DataType.MAP:
                     case DataType.TUPLE:
-                        res = op.getNext(getDummy(op.getResultType()), op.getResultType());
+                        res = op.getNext(op.getResultType());
                         break;
                     default:
                         log.error("Invalid result type: " + DataType.findType(op.getResultType()));
@@ -574,6 +587,7 @@ public class POLocalRearrange extends PhysicalOperator {
             // off the "key" correctly to stitch together the
             // "value"
             isKeyTuple  = true;
+            isKeyCompound = true;
         }
         mProjectedColsMapSize = mProjectedColsMap.size();
     }
@@ -687,7 +701,7 @@ public class POLocalRearrange extends PhysicalOperator {
         // Needs to be called as setDistinct so that the fake index tuple gets
         // created.
         clone.setDistinct(mIsDistinct);
-        clone.setAlias(alias);
+        clone.addOriginalLocation(alias, getOriginalLocations());
         return clone;
     }
 
@@ -732,6 +746,13 @@ public class POLocalRearrange extends PhysicalOperator {
      */
     public boolean isKeyTuple() {
         return isKeyTuple;
+    }
+
+    /**
+     * @return the isKeyCompound
+     */
+    public boolean isKeyCompound() {
+        return isKeyCompound;
     }
 
     /**

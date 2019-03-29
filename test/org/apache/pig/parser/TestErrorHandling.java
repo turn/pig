@@ -136,6 +136,7 @@ public class TestErrorHandling {
         } catch(FrontendException ex) {
             System.out.println( ex.getCause().getMessage() );
             Assert.assertTrue( ex.getCause().getMessage().contains( "line 2, column 0" ) );
+            Assert.assertTrue( ex.getCause().getMessage().contains( "No FileSystem for scheme: fs2you" ) );
             return;
         }
         Assert.fail( "Testcase should fail" );
@@ -218,7 +219,7 @@ public class TestErrorHandling {
         	String msg = ex.getMessage();
             System.out.println( msg );
             Assert.assertFalse( msg.contains( "file null" ) );
-            Assert.assertTrue( msg.contains( "mismatched input ''x'' expecting LEFT_PAREN" ) );
+            Assert.assertTrue( msg.contains( "Syntax error, unexpected symbol at or near 'A'" ) );
             return;
         }
         Assert.fail( "Testcase should fail" );
@@ -239,6 +240,95 @@ public class TestErrorHandling {
             return;
         }
         Assert.fail( "Testcase should fail" );
+    }
+    
+    
+    @Test //pig-2606
+    public void testNegative14() throws IOException {
+        String query = "A = load 'x'; \n" +
+                       "B = union A, A;";
+        try {
+            pig.registerQuery( query );
+        } catch(FrontendException ex) {
+            String msg = ex.getMessage();
+            System.out.println( msg );
+            Assert.assertTrue( msg.contains( "Pig does not accept same alias as input for") );
+            Assert.assertTrue( msg.contains( "UNION") );
+            return;
+        }
+        Assert.fail( "Testcase should fail" );
+    }
+    
+    @Test //pig-2606
+    public void testNegative15() throws IOException {
+        String query = "A = load 'x' as (a0, a1); \n" +
+                       "B = join A by a0, A by a1;";
+        try {
+            pig.registerQuery( query );
+        } catch(FrontendException ex) {
+            String msg = ex.getMessage();
+            System.out.println( msg );
+            Assert.assertTrue( msg.contains( "Pig does not accept same alias as input for") );
+            Assert.assertTrue( msg.contains( "JOIN") );
+            return;
+        }
+        Assert.fail( "Testcase should fail" );
+    }    
+
+    @Test //pig-2267
+    public void testAutomaticallyGivenSchemaName1() throws IOException{
+        String query = "a = load 'x' as (int,val_0);";
+        String failMsg = "Duplicated alias in schema";
+        shouldFailWithMessage(query,failMsg);
+    }
+
+    @Test //pig-2267
+    public void testAutomaticallyGivenSchemaName2() throws IOException{
+        String query = "a = load 'x' as ((int,int),tuple_0:tuple(int,int));";
+        String failMsg = "Duplicated alias in schema";
+        shouldFailWithMessage(query,failMsg);
+    }
+
+    @Test //pig-2267
+    public void testAutomaticallyGivenSchemaName3() throws IOException{
+        String query = "a = load 'x' as (tuple_0:tuple(int,int),(int,int));";
+        String failMsg = "Duplicated alias in schema";
+        shouldFailWithMessage(query,failMsg);
+    }
+
+    @Test //pig-2267
+    public void testAutomaticallyGivenSchemaName4() throws IOException{
+        String query = "a = load 'x' as (bag_0:bag{},{});";
+        String failMsg = "Duplicated alias in schema";
+        shouldFailWithMessage(query,failMsg);
+    }
+
+    @Test //pig-2267
+    public void testAutomaticallyGivenSchemaName5() throws IOException{
+        String query = "a = load 'x' as ([],map_0:map[]);";
+        String failMsg = "Duplicated alias in schema";
+        shouldFailWithMessage(query,failMsg);
+    }
+
+    @Test //pig-2267
+    public void testAutomaticallyGivenSchemaName6() throws IOException{
+        String query = "a = load 'x' as (int,int,int,val_3,val_2);";
+        String failMsg = "Duplicated alias in schema";
+        shouldFailWithMessage(query,failMsg);
+    }
+
+    public void shouldFailWithMessage(String query, String... messages) throws IOException {
+        try {
+            pig.registerQuery(query);
+        } catch (Exception e) {
+            String msg = e.getMessage();
+            System.out.println(msg);
+            for (String message : messages) {
+                Assert.assertTrue(msg.contains(message));
+            }
+            return;
+        }
+        Assert.fail("Testcase should fail");
     }
 
 }

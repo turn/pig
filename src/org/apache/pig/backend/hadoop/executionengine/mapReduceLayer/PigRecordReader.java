@@ -17,6 +17,8 @@
  */
 package org.apache.pig.backend.hadoop.executionengine.mapReduceLayer;
 
+import static org.apache.pig.PigConfiguration.TIME_UDFS_PROP;
+
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -52,6 +54,13 @@ import org.apache.pig.tools.pigstats.PigStatusReporter;
 public class PigRecordReader extends RecordReader<Text, Tuple> {
 
     private static final Log LOG = LogFactory.getLog(PigRecordReader.class);
+
+    private final static String TIMING_COUNTER = "approx_microsecs";
+    private final static int TIMING_FREQ = 100;
+
+    transient private String counterGroup = "";
+    private boolean doTiming = false;
+
     /**
      * the current Tuple value as returned by underlying
      * {@link LoadFunc#getNext()}
@@ -84,6 +93,10 @@ public class PigRecordReader extends RecordReader<Text, Tuple> {
     
     private TaskAttemptContext context;
     
+    private final long limit;
+
+    private long recordCount = 0;
+    
     /**
      * the Configuration object with data specific to the input the underlying
      * RecordReader will process (this is obtained after a 
@@ -97,7 +110,7 @@ public class PigRecordReader extends RecordReader<Text, Tuple> {
      * 
      */
     public PigRecordReader(InputFormat inputformat, PigSplit pigSplit, 
-            LoadFunc loadFunc, TaskAttemptContext context) throws IOException, InterruptedException {
+            LoadFunc loadFunc, TaskAttemptContext context, long limit) throws IOException, InterruptedException {
         this.inputformat = inputformat;
         this.pigSplit = pigSplit; 
         this.loadfunc = loadFunc;
@@ -106,7 +119,10 @@ public class PigRecordReader extends RecordReader<Text, Tuple> {
         curReader = null;
         progress = 0;
         idx = 0;
+        this.limit = limit;
         initNextRecordReader();
+        counterGroup = loadFunc.toString();
+        doTiming = context.getConfiguration().getBoolean(TIME_UDFS_PROP, false);
     }
     
     @Override
@@ -184,11 +200,24 @@ public class PigRecordReader extends RecordReader<Text, Tuple> {
 
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
+
+        if (limit != -1 && recordCount >= limit)
+            return false;
+        boolean timeThis = doTiming && ( (recordCount + 1) % TIMING_FREQ == 0);
+        long startNanos = 0;
+        if (timeThis) {
+            startNanos = System.nanoTime();
+        }
         while ((curReader == null) || (curValue = loadfunc.getNext()) == null) {
             if (!initNextRecordReader()) {
               return false;
             }
         }
+        if (timeThis) {
+            PigStatusReporter.getInstance().getCounter(counterGroup, TIMING_COUNTER).increment(
+                    ( Math.round((System.nanoTime() - startNanos) / 1000)) * TIMING_FREQ);
+        }
+        recordCount++;
         return true;
     }
 
@@ -223,14 +252,14 @@ public class PigRecordReader extends RecordReader<Text, Tuple> {
         // get a record reader for the idx-th chunk
         try {
           
-
-            curReader =  inputformat.createRecordReader(pigSplit.getWrappedSplit(idx), context);
-            LOG.info("Current split being processed "+pigSplit.getWrappedSplit(idx));
+            pigSplit.setCurrentIdx(idx);
+            curReader =  inputformat.createRecordReader(pigSplit.getWrappedSplit(), context);
+            LOG.info("Current split being processed "+pigSplit.getWrappedSplit());
 
             if (idx > 0) {
                 // initialize() for the first RecordReader will be called by MapTask;
                 // we're responsible for initializing subsequent RecordReaders.
-                curReader.initialize(pigSplit.getWrappedSplit(idx), context);
+                curReader.initialize(pigSplit.getWrappedSplit(), context);
                 loadfunc.prepareToRead(curReader, pigSplit);
             }
         } catch (Exception e) {

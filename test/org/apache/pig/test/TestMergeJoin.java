@@ -21,8 +21,6 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.Properties;
 
-import junit.framework.Assert;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.Job;
@@ -45,6 +43,7 @@ import org.apache.pig.impl.util.LogUtils;
 import org.apache.pig.test.utils.TestHelper;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -61,7 +60,6 @@ public class TestMergeJoin {
         props.setProperty("mapred.map.max.attempts", "1");
         props.setProperty("mapred.reduce.max.attempts", "1");
         pigServer = new PigServer(ExecType.MAPREDUCE, props);
-        //pigServer = new PigServer(ExecType.LOCAL, props);
     }
     /**
      * @throws java.lang.Exception
@@ -396,19 +394,43 @@ public class TestMergeJoin {
     }       
 
     @Test
-    public void testMergeJoinFailure1() throws IOException{
-        pigServer.registerQuery("A = LOAD '" + INPUT_FILE + "' as (id, name, n);");
-        pigServer.registerQuery("B = LOAD '" + INPUT_FILE + "' as (id, name);");
-        pigServer.registerQuery("C = ORDER A by $0 parallel 5;");
-        pigServer.registerQuery("D = join A by id, C by id using 'merge';");
+    public void testMergeJoinWithOrderAndSplit() throws Exception{
+        String query = "A = LOAD '" + INPUT_FILE + "' as (id, name, n);\n" +
+                "B = LOAD '" + INPUT_FILE + "' as (id, name);\n" +
+                "C = ORDER A by $0 parallel 5;\n" +
+                "D = join A by id, C by id using 'merge';\n" +
+                "store D into '/dev/null/1';";
+        // verify that this passes parsing sanity checks.
+        Util.buildPp(pigServer, query);
+    }
+
+    @Test
+    public void testMergeJoinWithOrder() throws Exception{
+        String query = "A = LOAD '" + INPUT_FILE + "' as (id, name, n);\n" +
+                "B = LOAD '" + INPUT_FILE + "' as (id, name);\n" +
+                "C = ORDER B by $0 parallel 5;\n" +
+                "D = join A by id, C by id using 'merge';\n" +
+                "store D into '/dev/null/1';";
+        // verify that this passes parsing sanity checks.
+        Util.buildPp(pigServer, query);
+    }
+
+    @Test
+    public void testMergeFailWithOrderUDF() throws Exception{
+        String query = "A = LOAD '" + INPUT_FILE + "' as (id, name, n);\n" +
+                "B = LOAD '" + INPUT_FILE + "' as (id, name);\n" +
+                "A = FOREACH A GENERATE LOWER($0) as id;\n" +
+                "C = ORDER B by $0 parallel 5;\n" +
+                "D = join A by id, C by id using 'merge';\n" +
+                "store D into '/dev/null/1';";
+        // verify that this fails parsing sanity checks.
         try {
-            pigServer.openIterator("D");
-        }catch(Exception e) {
-            PigException pe = LogUtils.getPigException(e);
-            Assert.assertEquals(1103,pe.getErrorCode());
+            Util.buildPp(pigServer, query);
+        } catch (Throwable t) {
+            // expected to fail.
             return;
         }
-        Assert.fail("Should fail to compile");
+        Assert.fail("Allowed a Merge Join despite a UDF");
     }       
 
     @Test

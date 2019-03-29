@@ -27,8 +27,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 
-import junit.framework.Assert;
-
 import org.apache.pig.ExecType;
 import org.apache.pig.PigException;
 import org.apache.pig.PigServer;
@@ -46,10 +44,12 @@ import org.apache.pig.impl.plan.Operator;
 import org.apache.pig.impl.plan.OperatorPlan;
 import org.apache.pig.impl.util.LogUtils;
 import org.apache.pig.newplan.logical.relational.LogicalPlan;
+import org.apache.pig.test.utils.SimpleCustomPartitioner;
 import org.apache.pig.tools.grunt.GruntParser;
 import org.apache.pig.tools.pigscript.parser.ParseException;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -573,7 +573,7 @@ public class TestMultiQueryCompiler {
 
             LogicalPlan lp = checkLogicalPlan(2, 1, 7);
 
-            PhysicalPlan pp = checkPhysicalPlan(lp, 2, 1, 13);
+            PhysicalPlan pp = checkPhysicalPlan(lp, 2, 1, 11);
 
             checkMRPlan(pp, 1, 1, 2); 
 
@@ -1366,6 +1366,80 @@ public class TestMultiQueryCompiler {
             Assert.fail();
         }
     }
+    
+    @Test
+    public void testMultiQueryWithCustomPartitioner() {
+
+        System.out.println("===== multi-query with intermediate stores =====");
+
+        try {            
+            myPig.setBatchOn();
+            
+            myPig.registerQuery("a = load 'passwd' " +
+                                "using PigStorage(':') as (uname:chararray, passwd:chararray, uid:int, gid:int);");
+            myPig.registerQuery("l = FILTER a BY uname == 'foo';");
+            myPig.registerQuery("b = GROUP a BY uname PARTITION BY " + SimpleCustomPartitioner.class.getName() + " PARALLEL 3;");
+            myPig.registerQuery("c = FOREACH b GENERATE FLATTEN(a) PARALLEL 3;");
+            myPig.registerQuery("STORE c INTO 'output1';");
+            myPig.registerQuery("STORE l INTO 'output2';");
+
+            LogicalPlan lp = checkLogicalPlan(1, 2, 6);
+
+            PhysicalPlan pp = checkPhysicalPlan(lp, 1, 2, 12);
+
+            //merging is skipped due to PIG-3435 for now
+            //MROperPlan mrp = checkMRPlan(pp, 1, 1, 1);
+            //MapReduceOper mrop = mrp.getRoots().get(0);
+
+            //Instead of 1 merged mapreduce job, there will be two.
+            MROperPlan mrp = checkMRPlan(pp, 1, 1, 2);
+            MapReduceOper mrop = mrp.getLeaves().get(0);
+            Assert.assertTrue(mrop.getCustomPartitioner().equals(SimpleCustomPartitioner.class.getName()));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            Assert.fail();
+        } 
+    }    
+
+    @Test
+    public void testMultiQueryDoNotMergeMRwithDifferentPartitioners() {
+
+        System.out.println("===== multi-query with intermediate stores =====");
+
+        try {
+            myPig.setBatchOn();
+
+            myPig.registerQuery("a = load 'passwd' " +
+                                "using PigStorage(':') as (uname:chararray, passwd:chararray, uid:int, gid:int);");
+            myPig.registerQuery("b1 = FILTER a BY gid != 0;");
+            myPig.registerQuery("b2 = FILTER a BY uid > 100;");
+            myPig.registerQuery("c1 = GROUP b1 BY uname PARTITION BY " + SimpleCustomPartitioner.class.getName() + " PARALLEL 3;");
+            myPig.registerQuery("c2 = GROUP b2 BY uname PARALLEL 3;");
+            myPig.registerQuery("STORE c1 INTO 'output1';");
+            myPig.registerQuery("STORE c2 INTO 'output2';");
+
+            LogicalPlan lp = checkLogicalPlan(1, 2, 7);
+
+            PhysicalPlan pp = checkPhysicalPlan(lp, 1, 2, 15);
+
+            MROperPlan mrp = checkMRPlan(pp, 1, 1, 2);
+
+            // since the first mapreduce job of mrp.getRoots().get(0)
+            // is the merge of splitter and splittee without custom partitioner (c2 above),
+            // second job should contain the custom partitioner
+            MapReduceOper mrop;
+            mrop = mrp.getRoots().get(0);
+            Assert.assertTrue(mrop.getCustomPartitioner() == null );
+            mrop = mrp.getLeaves().get(0);
+            Assert.assertTrue(mrop.getCustomPartitioner().equals(SimpleCustomPartitioner.class.getName()));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            Assert.fail(e.toString());
+        }
+    }
+
     
     // --------------------------------------------------------------------------
     // Helper methods

@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 /**
  * Grammar file for Pig tree parser (visitor for default data type insertion).
  *
- * NOTE: THIS FILE IS BASED ON QueryParser.g, SO IF YOU CHANGE THAT FILE, YOU WILL 
+ * NOTE: THIS FILE IS BASED ON QueryParser.g, SO IF YOU CHANGE THAT FILE, YOU WILL
  *       PROBABLY NEED TO MAKE CORRESPONDING CHANGES TO THIS FILE AS WELL.
  */
 
@@ -45,19 +45,19 @@ import java.util.Set;
 public String getErrorMessage(RecognitionException e, String[] tokenNames) {
 	if (e instanceof ParserValidationException) {
 		return e.toString();
-	} 
+	}
 	return super.getErrorMessage(e, tokenNames);
 }
 
 public void setParams(Set ps, String macro, long idx) {
-    params = ps; 
+    params = ps;
     macroName = macro;
     index = idx;
 }
 
 private String getMask(String alias) {
-    return params.contains( alias ) 
-        ? alias 
+    return params.contains( alias )
+        ? alias
         : "macro_" + macroName + "_" + alias + "_" + index;
 }
 
@@ -84,30 +84,41 @@ query : ^( QUERY statement* )
 
 statement : general_statement
           | split_statement
+          | realias_statement
+          | assert_statement
 ;
 
 split_statement : split_clause
 ;
 
+assert_statement: assert_clause
+;
+
+realias_statement : realias_clause
+;
+
 // For foreach statement that with complex inner plan.
-general_statement 
-    : ^( STATEMENT ( alias )? 
-        op_clause parallel_clause? ) 
+general_statement
+    : ^( STATEMENT ( alias )?
+        op_clause parallel_clause? )
 ;
 
-parallel_clause 
-    : ^( PARALLEL INTEGER ) 
+realias_clause : ^(REALIAS alias IDENTIFIER)
 ;
 
-alias 
-    : IDENTIFIER 
-        { 
-            aliasSeen.add($IDENTIFIER.text); 
-            $IDENTIFIER.getToken().setText(getMask($IDENTIFIER.text)); 
+parallel_clause
+    : ^( PARALLEL INTEGER )
+;
+
+alias
+    : IDENTIFIER
+        {
+            aliasSeen.add($IDENTIFIER.text);
+            $IDENTIFIER.getToken().setText(getMask($IDENTIFIER.text));
         }
 ;
 
-op_clause : define_clause 
+op_clause : define_clause
           | load_clause
           | group_clause
           | store_clause
@@ -116,6 +127,7 @@ op_clause : define_clause
           | limit_clause
           | sample_clause
           | order_clause
+          | rank_clause
           | cross_clause
           | join_clause
           | union_clause
@@ -123,61 +135,63 @@ op_clause : define_clause
           | mr_clause
           | split_clause
           | foreach_clause
+          | cube_clause
+          | assert_clause
 ;
 
-define_clause 
+define_clause
     : ^( DEFINE IDENTIFIER  ( cmd | func_clause ) )
 ;
 
-cmd 
-    : ^( EXECCOMMAND 
+cmd
+    : ^( EXECCOMMAND
         ( ship_clause | cache_clause | input_clause | output_clause | error_clause )* )
 ;
 
-ship_clause 
+ship_clause
     : ^( SHIP path_list? )
 ;
 
-path_list 
-    : QUOTEDSTRING+ 
+path_list
+    : QUOTEDSTRING+
 ;
 
-cache_clause 
+cache_clause
     : ^( CACHE path_list )
 ;
 
-input_clause 
+input_clause
     : ^( INPUT stream_cmd+ )
 ;
 
-stream_cmd 
+stream_cmd
     : ^( STDIN func_clause? )
     | ^( STDOUT func_clause? )
     | ^( QUOTEDSTRING func_clause? )
 ;
 
-output_clause 
+output_clause
     : ^( OUTPUT stream_cmd+ )
 ;
 
-error_clause 
+error_clause
     : ^( STDERROR ( QUOTEDSTRING INTEGER? )? )
 ;
 
-load_clause 
+load_clause
     : ^( LOAD filename func_clause? as_clause? )
 ;
 
-filename 
-    : QUOTEDSTRING 
+filename
+    : QUOTEDSTRING
 ;
 
 as_clause
-@init { 
+@init {
 	inAsOrGenClause = true;
 }
-@after { 
-	inAsOrGenClause = false; 
+@after {
+	inAsOrGenClause = false;
 }
     : ^( AS field_def_list )
 ;
@@ -186,103 +200,145 @@ field_def
     : ^( FIELD_DEF IDENTIFIER type? ) {
 	if (inAsOrGenClause) {
 		if (aliasSeen.contains($IDENTIFIER.text)) {
-			throw new ParserValidationException(input, new SourceLocation((PigParserNode)$field_def.start), 
+			throw new ParserValidationException(input, new SourceLocation((PigParserNode)$field_def.start),
 				"Macro doesn't support user defined schema that contains name that conflicts with alias name: " + $IDENTIFIER.text);
 		}
 	}
 }
+    | ^( FIELD_DEF_WITHOUT_IDENTIFIER type )
 ;
 
 field_def_list
-    : field_def+ 
+    : field_def+
 ;
 
 type : simple_type | tuple_type | bag_type | map_type
 ;
 
-simple_type 
-    : BOOLEAN | INT | LONG | FLOAT | DOUBLE | CHARARRAY | BYTEARRAY 
+simple_type
+    : BOOLEAN | INT | LONG | FLOAT | DOUBLE | DATETIME | BIGINTEGER | BIGDECIMAL | CHARARRAY | BYTEARRAY
 ;
 
-tuple_type 
+tuple_type
     : ^( TUPLE_TYPE field_def_list? )
 ;
 
-bag_type 
+bag_type
     : ^( BAG_TYPE IDENTIFIER? tuple_type? )
 ;
 
 map_type : ^( MAP_TYPE type? )
 ;
 
-func_clause 
+func_clause
     : ^( FUNC_REF func_name )
     | ^( FUNC func_name func_args? )
 ;
 
-func_name 
+func_name
     : eid ( ( PERIOD | DOLLAR ) eid )*
 ;
 
-func_args 
-    : QUOTEDSTRING+ 
+func_args
+    : QUOTEDSTRING+
+;
+
+cube_clause
+    : ^( CUBE cube_item )
+;
+
+cube_item
+    : rel ( cube_by_clause )
+;
+
+cube_by_clause
+    : ^( BY cube_or_rollup )
+;
+
+cube_or_rollup
+    : cube_rollup_list+
+;
+
+cube_rollup_list
+    : ^( ( CUBE | ROLLUP ) cube_by_expr_list )
+;
+
+cube_by_expr_list
+    : cube_by_expr+
+;
+
+cube_by_expr
+    : col_range | expr | STAR
 ;
 
 group_clause
     : ^( ( GROUP | COGROUP ) group_item+ group_type? partition_clause? )
 ;
 
-group_type : QUOTEDSTRING 
+group_type : QUOTEDSTRING
 ;
 
 group_item
     : rel ( join_group_by_clause | ALL | ANY ) ( INNER | OUTER )?
 ;
 
-rel 
+rel
     : alias | ( op_clause parallel_clause? )
 ;
 
 flatten_generated_item
 @init {
 	inAsOrGenClause = true;
-} 
+}
 @after {
 	inAsOrGenClause = false;
 }
     : ( flatten_clause | col_range | expr | STAR ) field_def_list?
 ;
 
-flatten_clause 
+flatten_clause
     : ^( FLATTEN expr )
 ;
 
-store_clause 
+store_clause
     : ^( STORE alias filename func_clause? )
 ;
 
-filter_clause 
+assert_clause
+    : ^( ASSERT alias cond comment? )
+;
+
+comment : QUOTEDSTRING
+;
+
+filter_clause
     : ^( FILTER rel cond )
 ;
 
-cond 
+cond
     : ^( OR cond cond )
     | ^( AND cond cond )
     | ^( NOT cond )
     | ^( NULL expr NOT? )
     | ^( rel_op expr expr )
+    | in_eval
     | func_eval
+    | ^( BOOL_COND expr )
+;
+
+in_eval
+    : ^( IN ( ^( IN_LHS expr ) ^( IN_RHS expr ) )+ )
 ;
 
 func_eval
     : ^( FUNC_EVAL func_name real_arg* )
 ;
 
-real_arg 
+real_arg
     : expr | STAR
 ;
 
-expr 
+expr
     : ^( PLUS expr expr )
     | ^( MINUS expr expr )
     | ^( STAR expr expr )
@@ -296,87 +352,113 @@ expr
     | ^( EXPR_IN_PAREN expr )
 ;
 
-type_cast 
+type_cast
     : simple_type | map_type | tuple_type_cast | bag_type_cast
 ;
 
-tuple_type_cast 
+tuple_type_cast
     : ^( TUPLE_TYPE_CAST type_cast* )
 ;
 
-bag_type_cast 
+bag_type_cast
     : ^( BAG_TYPE_CAST tuple_type_cast? )
 ;
 
-var_expr 
+var_expr
     : projectable_expr ( dot_proj | pound_proj )*
 ;
 
 projectable_expr
-    : func_eval | col_ref | bin_expr
+    : func_eval | col_ref | bin_expr | case_expr | case_cond
 ;
 
-dot_proj 
+dot_proj
     : ^( PERIOD col_alias_or_index+ )
 ;
 
 col_alias_or_index : col_alias | col_index
 ;
 
-col_alias 
-    : GROUP 
+col_alias
+    : GROUP
+    | CUBE
     | IDENTIFIER
 ;
 
-col_index 
+col_index
     : DOLLARVAR
 ;
 
 col_range :  ^(COL_RANGE col_ref? DOUBLE_PERIOD col_ref?)
 ;
 
-pound_proj 
+pound_proj
     : ^( POUND ( QUOTEDSTRING | NULL ) )
 ;
 
-bin_expr 
-    : ^( BIN_EXPR cond expr expr )     
+bin_expr
+    : ^( BIN_EXPR cond expr expr )
 ;
 
-limit_clause 
+case_expr
+    : ^( CASE_EXPR ( ^( CASE_EXPR_LHS expr ) ( ^( CASE_EXPR_RHS expr) )+ )+ )
+;
+
+case_cond
+    : ^( CASE_COND ^( WHEN cond+ ) ^( THEN expr+ ) )
+;
+
+limit_clause
     : ^( LIMIT rel ( INTEGER | LONGINTEGER | expr ) )
 ;
 
-sample_clause 
+sample_clause
     :	 ^( SAMPLE rel ( DOUBLENUMBER | expr ) )
 ;
 
-order_clause 
+rank_clause
+	: ^( RANK rel ( rank_by_statement )? )
+;
+
+rank_by_statement
+	: ^( BY rank_by_clause ( DENSE )? )
+;
+
+rank_by_clause
+	: STAR ( ASC | DESC )?
+    | rank_col+
+;
+
+rank_col
+	: ( col_range | col_ref ) ( ASC | DESC )?
+;
+
+order_clause
     : ^( ORDER rel order_by_clause func_clause? )
 ;
 
-order_by_clause 
+order_by_clause
     : STAR ( ASC | DESC )?
     | order_col+
 ;
 
-order_col 
-    : (col_range | col_ref) ( ASC | DESC )?    
+order_col
+    : (col_range | col_ref) ( ASC | DESC )?
 ;
 
-distinct_clause 
+distinct_clause
     : ^( DISTINCT rel partition_clause? )
 ;
 
-partition_clause 
-    : ^( PARTITION func_name )    
+partition_clause
+    : ^( PARTITION func_name )
 ;
 
-cross_clause 
-    : ^( CROSS rel_list partition_clause? )    
+cross_clause
+    : ^( CROSS rel_list partition_clause? )
 ;
 
-rel_list 
+rel_list
     : rel+
 ;
 
@@ -388,9 +470,9 @@ join_type : QUOTEDSTRING
 ;
 
 join_sub_clause
-    : join_item ( LEFT 
-             | RIGHT 
-             | FULL 
+    : join_item ( LEFT
+             | RIGHT
+             | FULL
              ) OUTER? join_item
     | join_item+
 ;
@@ -403,19 +485,19 @@ join_group_by_clause
     : ^( BY join_group_by_expr+ )
 ;
 
-join_group_by_expr 
-    : col_range | expr | STAR 
+join_group_by_expr
+    : col_range | expr | STAR
 ;
 
-union_clause 
-    : ^( UNION ONSCHEMA? rel_list )    
+union_clause
+    : ^( UNION ONSCHEMA? rel_list )
 ;
 
-foreach_clause 
-    : ^( FOREACH rel foreach_plan )    
+foreach_clause
+    : ^( FOREACH rel foreach_plan )
 ;
 
-foreach_plan 
+foreach_plan
     : ^( FOREACH_PLAN_SIMPLE generate_clause )
     | ^( FOREACH_PLAN_COMPLEX nested_blk )
 ;
@@ -424,8 +506,8 @@ nested_blk
     : nested_command* generate_clause
 ;
 
-generate_clause 
-    : ^( GENERATE flatten_generated_item+ )    
+generate_clause
+    : ^( GENERATE flatten_generated_item+ )
 ;
 
 nested_command
@@ -442,23 +524,23 @@ nested_op : nested_proj
           | nested_foreach
 ;
 
-nested_proj 
-    : ^( NESTED_PROJ col_ref col_ref+ )    
+nested_proj
+    : ^( NESTED_PROJ col_ref col_ref+ )
 ;
 
 nested_filter
-    : ^( FILTER nested_op_input cond )    
+    : ^( FILTER nested_op_input cond )
 ;
 
-nested_sort 
-    : ^( ORDER nested_op_input order_by_clause func_clause? )    
+nested_sort
+    : ^( ORDER nested_op_input order_by_clause func_clause? )
 ;
 
-nested_distinct 
-    : ^( DISTINCT nested_op_input )    
+nested_distinct
+    : ^( DISTINCT nested_op_input )
 ;
 
-nested_limit 
+nested_limit
     : ^( LIMIT nested_op_input ( INTEGER | expr ) )
 ;
 
@@ -474,15 +556,15 @@ nested_op_input_list : nested_op_input+
 nested_op_input : col_ref | nested_proj
 ;
 
-stream_clause 
+stream_clause
     : ^( STREAM rel ( EXECCOMMAND | IDENTIFIER ) as_clause? )
 ;
 
-mr_clause 
+mr_clause
     : ^( MAPREDUCE QUOTEDSTRING path_list? store_clause load_clause EXECCOMMAND? )
 ;
 
-split_clause 
+split_clause
     : ^( SPLIT rel split_branch+ split_otherwise? )
 ;
 
@@ -490,15 +572,16 @@ split_branch
     : ^( SPLIT_BRANCH alias cond )
 ;
 
-split_otherwise 
-    : ^( OTHERWISE alias ) 
+split_otherwise
+    : ^( OTHERWISE alias )
 ;
 
 col_ref : alias_col_ref | dollar_col_ref
 ;
 
-alias_col_ref 
-    : GROUP 
+alias_col_ref
+    : GROUP
+    | CUBE
     | IDENTIFIER
       {
           String alias = $IDENTIFIER.text;
@@ -514,7 +597,7 @@ alias_col_ref
       }
 ;
 
-dollar_col_ref 
+dollar_col_ref
     : DOLLARVAR
 ;
 
@@ -524,33 +607,28 @@ const_expr : literal
 literal : scalar | map | bag | tuple
 ;
 
-scalar 
-    : INTEGER
-    | LONGINTEGER
-    | FLOATNUMBER
-    | DOUBLENUMBER
-    | QUOTEDSTRING
-    | NULL
-    | TRUE
-    | FALSE
+scalar : num_scalar | QUOTEDSTRING | NULL | TRUE | FALSE
 ;
 
-map 
+num_scalar : MINUS? ( INTEGER | LONGINTEGER | FLOATNUMBER | DOUBLENUMBER | BIGINTEGERNUMBER | BIGDECIMALNUMBER )
+;
+
+map
     : ^( MAP_VAL keyvalue* )
 ;
 
-keyvalue 
-    : ^( KEY_VAL_PAIR map_key const_expr )    
+keyvalue
+    : ^( KEY_VAL_PAIR map_key const_expr )
 ;
 
 map_key : QUOTEDSTRING
 ;
 
-bag 
+bag
     : ^( BAG_VAL tuple* )
 ;
 
-tuple 
+tuple
     : ^( TUPLE_VAL literal* )
 ;
 
@@ -562,8 +640,11 @@ eid : rel_str_op
     | LOAD
     | FILTER
     | FOREACH
+    | CUBE
+    | ROLLUP
     | MATCHES
     | ORDER
+    | RANK
     | DISTINCT
     | COGROUP
     | JOIN
@@ -594,7 +675,10 @@ eid : rel_str_op
     | LONG
     | FLOAT
     | DOUBLE
+    | DATETIME
     | CHARARRAY
+    | BIGINTEGER
+    | BIGDECIMAL
     | BYTEARRAY
     | BAG
     | TUPLE
@@ -623,6 +707,7 @@ eid : rel_str_op
     | TOBAG
     | TOMAP
     | TOTUPLE
+    | ASSERT
 ;
 
 // relational operator

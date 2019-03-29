@@ -24,6 +24,7 @@ import org.apache.pig.PigException;
 import org.apache.pig.data.DataType;
 import org.apache.pig.impl.logicalLayer.FrontendException;
 import org.apache.pig.impl.plan.PlanValidationException;
+import org.apache.pig.impl.util.Pair;
 import org.apache.pig.newplan.Operator;
 import org.apache.pig.newplan.OperatorPlan;
 import org.apache.pig.newplan.PlanVisitor;
@@ -41,7 +42,7 @@ import org.apache.pig.parser.SourceLocation;
  *
  */
 public class ProjectExpression extends ColumnExpression {
-    
+
     private int input; // Which input of the relational operator this project
                        // is projecting from.  Count is zero based.  So if this
                        // project is in a filter the input number will always
@@ -52,19 +53,25 @@ public class ProjectExpression extends ColumnExpression {
                      // Count is zero based.
     private String alias; // The alias of the projected field.
     
+    /**
+     * In Foreach inner plan, a projection can be made on a relational operator, which may get reused.
+     * However, the expression needs to be sticky to the operator on which the expression is projected.
+     */
+    private Operator projectedOperator;
+
     private LogicalRelationalOperator attachedRelationalOp;
 
-    //fields for range projection. 
+    //fields for range projection.
     private boolean isRangeProject = false;
     //start and end columns in range. endCol value of -1 represents everything upto end
     private int startCol = -1;
     private int endCol = -2;
-    
+
     private String startAlias;
     private String endAlias;
 
-    
-    
+
+
     /**
      * Adds projection to the plan.
      * @param plan LogicalExpressionPlan this projection will be a part of
@@ -88,13 +95,14 @@ public class ProjectExpression extends ColumnExpression {
      * @param inputNum
      * @param alias
      * @param attachedRelationalOp
-     * @throws FrontendException 
+     * @throws FrontendException
      */
-    public ProjectExpression(OperatorPlan plan, int inputNum, String alias,
+    public ProjectExpression(OperatorPlan plan, int inputNum, String alias, Operator projectedOp,
             LogicalRelationalOperator attachedRelationalOp) {
         super("Project", plan);
         this.input = inputNum;
         this.alias = alias;
+        this.projectedOperator = projectedOp;
         plan.add(this);
         this.attachedRelationalOp = attachedRelationalOp;
     }
@@ -102,7 +110,7 @@ public class ProjectExpression extends ColumnExpression {
     /**
      * Constructor for range projection
      * Adds projection to the plan.
-     * The start and end alias/column-number should be set separately. 
+     * The start and end alias/column-number should be set separately.
      * @param plan
      * @param inputNum
      * @param attachedRelationalOp
@@ -125,6 +133,7 @@ public class ProjectExpression extends ColumnExpression {
         this.input = projExpr.input;
         this.col = projExpr.col;
         this.alias = projExpr.alias;
+        this.projectedOperator = projExpr.projectedOperator;
         this.attachedRelationalOp = projExpr.attachedRelationalOp;
         this.isRangeProject = projExpr.isRangeProject;
         this.startCol = projExpr.startCol;
@@ -132,7 +141,7 @@ public class ProjectExpression extends ColumnExpression {
         this.startAlias = projExpr.startAlias;
         this.endAlias = projExpr.endAlias;
         plan.add(this);
-        
+
     }
 
     /**
@@ -154,7 +163,7 @@ public class ProjectExpression extends ColumnExpression {
                 "range projection (..) " + startCol;
                 throw new PlanValidationException(this, msg, 2270, PigException.BUG);
             }
-            
+
             if(endCol > 0 && startCol > endCol){
                 String msg = "start column appears after end column in " +
                 "range projection (..) . Start column position " + startCol +
@@ -165,13 +174,13 @@ public class ProjectExpression extends ColumnExpression {
             setColNum(findColNum(alias));
         }
     }
-    
+
     private int findColNum(String alias) throws FrontendException {
         LogicalPlan lp = (LogicalPlan)attachedRelationalOp.getPlan();
         List<Operator> inputs = lp.getPredecessors( attachedRelationalOp );
         LogicalRelationalOperator input = (LogicalRelationalOperator)inputs.get( getInputNum() );
         LogicalSchema inputSchema = input.getSchema();
-        
+
         if( alias != null ) {
             int colNum = inputSchema == null ? -1 : inputSchema.getFieldPosition( alias );
             if( colNum == -1 ) {
@@ -186,15 +195,15 @@ public class ProjectExpression extends ColumnExpression {
             int col = getColNum();
             if( inputSchema != null && col >= inputSchema.size() ) {
                 throw new PlanValidationException( this,
-                        "Out of bound access. Trying to access non-existent column: " + 
-                        col + ". Schema " +  inputSchema.toString(false) + 
+                        "Out of bound access. Trying to access non-existent column: " +
+                        col + ". Schema " +  inputSchema.toString(false) +
                         " has " + inputSchema.size() + " column(s)." , 1000);
             }
             return col;
         }
     }
 
-    
+
     /**
      * @link org.apache.pig.newplan.Operator#accept(org.apache.pig.newplan.PlanVisitor)
      */
@@ -216,12 +225,12 @@ public class ProjectExpression extends ColumnExpression {
     public int getInputNum() {
         return input;
     }
-    
-   
+
+
     public void setInputNum(int inputNum) {
         input = inputNum;
     }
-    
+
     /**
      * Column number this project references.  The column number is the column
      * in the relational operator that contains this expression.  The count
@@ -234,21 +243,25 @@ public class ProjectExpression extends ColumnExpression {
         }
         return col;
     }
-    
+
     public String getColAlias() {
         return alias;
     }
     
+    public Operator getProjectedOperator() {
+    	return this.projectedOperator;
+    }
+
     /**
      * Set the column number for this project.  This should only be called by
-     * ProjectionPatcher.  Stupid Java needs friends.  
+     * ProjectionPatcher.  Stupid Java needs friends.
      * @param colNum new column number for projection
      */
     public void setColNum(int colNum) {
         col = colNum;
         alias = null; // Once the column number is set, alias is no longer needed.
     }
-    
+
     public boolean isProjectStar() {
         return col<0;
     }
@@ -256,32 +269,40 @@ public class ProjectExpression extends ColumnExpression {
     public boolean isRangeProject() {
         return isRangeProject;
     }
-    
+
     public boolean isRangeOrStarProject(){
         return isProjectStar() || isRangeProject();
     }
-    
+
     @Override
     public LogicalSchema.LogicalFieldSchema getFieldSchema() throws FrontendException {
         if (fieldSchema!=null)
             return fieldSchema;
         LogicalRelationalOperator referent = findReferent();
-        
+
         LogicalSchema schema = referent.getSchema();
-        
+
         if (attachedRelationalOp instanceof LOGenerate && plan.getSuccessors(this)==null) {
             if (!(findReferent() instanceof LOInnerLoad)||
                     ((LOInnerLoad)findReferent()).sourceIsBag()) {
                 String alias = findReferent().getAlias();
-                List<LOInnerLoad> innerLoads = LOForEach.findReacheableInnerLoadFromBoundaryProject(this);
-                
+
+                Pair<List<LOInnerLoad>, Boolean> innerLoadsPair = LOForEach.findReacheableInnerLoadFromBoundaryProject(this);
+                List<LOInnerLoad> innerLoads = innerLoadsPair.first;
+                boolean needNewUid = innerLoadsPair.second;
+
                 // pull tuple information from innerload
                 if (innerLoads.get(0).getProjection().getFieldSchema().schema!=null &&
                         innerLoads.get(0).getProjection().getFieldSchema().type==DataType.BAG) {
                     LogicalFieldSchema originalTupleFieldSchema = innerLoads.get(0).getProjection().getFieldSchema().schema.getField(0);
                     LogicalFieldSchema newTupleFieldSchema = new LogicalFieldSchema(originalTupleFieldSchema.alias,
                             schema, DataType.TUPLE);
-                    newTupleFieldSchema.uid = originalTupleFieldSchema.uid;
+                    if (needNewUid) {
+                        newTupleFieldSchema.uid = LogicalExpression.getNextUid();
+                    }
+                    else {
+                        newTupleFieldSchema.uid = originalTupleFieldSchema.uid;
+                    }
                     LogicalSchema newTupleSchema = new LogicalSchema();
                     newTupleSchema.addField(newTupleFieldSchema);
                     fieldSchema = new LogicalSchema.LogicalFieldSchema(alias, newTupleSchema, DataType.BAG);
@@ -289,7 +310,10 @@ public class ProjectExpression extends ColumnExpression {
                 else {
                     fieldSchema = new LogicalSchema.LogicalFieldSchema(alias, schema, DataType.BAG);
                 }
-                fieldSchema.uid = innerLoads.get(0).getProjection().getFieldSchema().uid;
+                if (needNewUid)
+                    fieldSchema.uid = LogicalExpression.getNextUid();
+                else
+                    fieldSchema.uid = innerLoads.get(0).getProjection().getFieldSchema().uid;
             }
             else {
                 // InnerLoad and source is not bag
@@ -330,10 +354,10 @@ public class ProjectExpression extends ColumnExpression {
                 } else {
                     fieldSchema = new LogicalSchema.LogicalFieldSchema(null, null, DataType.BYTEARRAY);
                 }
-                
+
                 if (fieldSchema!=null)
                     uidOnlyFieldSchema = fieldSchema.mergeUid(uidOnlyFieldSchema);
-            } 
+            }
             else {
                 int index = -1;
                 if (!isRangeOrStarProject() && uidOnlyFieldSchema!=null) {
@@ -352,7 +376,7 @@ public class ProjectExpression extends ColumnExpression {
                 }
                 if (index==-1)
                     index = col;
-                
+
                 if (!isRangeOrStarProject()) {
                     if (schema!=null && schema.size()>index)
                         fieldSchema = schema.getField(index);
@@ -391,22 +415,22 @@ public class ProjectExpression extends ColumnExpression {
         if (preds == null || input >= preds.size()) {
             throw new FrontendException("Projection with nothing to reference!", 2225);
         }
-        
+
         LogicalRelationalOperator pred =
             (LogicalRelationalOperator)preds.get(input);
         if (pred == null) {
-            throw new FrontendException("Cannot fine reference for " + this, 2226);
+            throw new FrontendException("Cannot find reference for " + this, 2226);
         }
         return pred;
     }
-    
+
     @Override
     public boolean isEqual(Operator other) throws FrontendException {
         if (other != null && other instanceof ProjectExpression) {
             ProjectExpression po = (ProjectExpression)other;
             if (po.input != input || po.col != col)
                 return false;
-            
+
             Operator mySucc = getPlan().getSuccessors(this)!=null?
                     getPlan().getSuccessors(this).get(0):null;
             Operator theirSucc = other.getPlan().getSuccessors(other)!=null?
@@ -420,7 +444,7 @@ public class ProjectExpression extends ColumnExpression {
             return false;
         }
     }
-    
+
     public String toString() {
         StringBuilder msg = new StringBuilder();
         if (fieldSchema!=null && fieldSchema.alias!=null)
@@ -448,18 +472,18 @@ public class ProjectExpression extends ColumnExpression {
 
         return msg.toString();
     }
-    
+
     public LogicalRelationalOperator getAttachedRelationalOp() {
         return attachedRelationalOp;
     }
-    
+
     public void setAttachedRelationalOp(LogicalRelationalOperator attachedRelationalOp) {
         this.attachedRelationalOp = attachedRelationalOp;
     }
-    
+
     @Override
     public byte getType() throws FrontendException {
-        // for boundary project, if 
+        // for boundary project, if
         if (getFieldSchema()==null) {
             if (attachedRelationalOp instanceof LOGenerate && findReferent() instanceof
                     LOInnerLoad) {
@@ -501,7 +525,7 @@ public class ProjectExpression extends ColumnExpression {
 
     /**
      * @param startAlias
-     * @throws FrontendException 
+     * @throws FrontendException
      */
     public void setStartAlias(String startAlias) throws FrontendException {
        this.startAlias = startAlias;
@@ -509,7 +533,7 @@ public class ProjectExpression extends ColumnExpression {
 
     /**
      * @param endAlias
-     * @throws FrontendException 
+     * @throws FrontendException
      */
     public void setEndAlias(String endAlias) throws FrontendException {
         this.endAlias = endAlias;
@@ -523,13 +547,14 @@ public class ProjectExpression extends ColumnExpression {
                 this.getColNum(),
                 this.getAttachedRelationalOp());
         copy.setLocation( new SourceLocation( location ) );
-        copy.alias = alias; 
+        copy.alias = alias;
+        copy.projectedOperator = this.projectedOperator;
         copy.isRangeProject = this.isRangeProject;
         copy.startCol = this.startCol;
         copy.endCol = this.endCol;
         copy.startAlias = this.startAlias;
         copy.endAlias = this.endAlias;
-        
+
         return copy;
     }
 

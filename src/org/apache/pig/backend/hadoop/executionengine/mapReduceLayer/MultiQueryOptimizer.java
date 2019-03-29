@@ -115,6 +115,11 @@ class MultiQueryOptimizer extends MROpPlanVisitor {
                         + " uses secondary key, do not merge it");
                 continue;
             }
+            if (successor.getCustomPartitioner() != null) {
+                log.debug("Splittee " + successor.getOperatorKey().getId()
+                        + " uses customPartitioner, do not merge it");
+                continue;
+            }
             if (isMapOnly(successor)) {
                 if (isSingleLoadMapperPlan(successor.mapPlan)
                         && isSinglePredecessor(successor)) {                    
@@ -1051,6 +1056,7 @@ class MultiQueryOptimizer extends MROpPlanVisitor {
         splitter.reducePlan = mapReduce.reducePlan;
         splitter.setReduceDone(true);
         splitter.combinePlan = mapReduce.combinePlan;
+        splitter.customPartitioner = mapReduce.customPartitioner;
                 
         // replace store operator in the splitter with split operator
         if (leaf instanceof POStore) {                            

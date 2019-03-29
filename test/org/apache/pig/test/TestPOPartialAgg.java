@@ -25,6 +25,7 @@ import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.pig.FuncSpec;
+import org.apache.pig.PigConfiguration;
 import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigMapReduce;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.POStatus;
@@ -123,12 +124,12 @@ public class TestPOPartialAgg {
         Result res;
         // attaching one input tuple, result tuple stays in operator, expect EOP
         partAggOp.attachInput(t);
-        res = partAggOp.getNext(dummyTuple);
+        res = partAggOp.getNextTuple();
         assertEquals(POStatus.STATUS_EOP, res.returnStatus);
 
         // end of all input, now expecting results
         parentPlan.endOfAllInput = true;
-        res = partAggOp.getNext(dummyTuple);
+        res = partAggOp.getNextTuple();
         assertEquals(POStatus.STATUS_OK, res.returnStatus);
         assertEquals(t, res.result);
     }
@@ -137,12 +138,12 @@ public class TestPOPartialAgg {
     public void testPartialAggNoInput() throws ExecException, ParserException {
 
         // nothing attached, expecting EOP
-        Result res = partAggOp.getNext(dummyTuple);
+        Result res = partAggOp.getNextTuple();
         assertEquals(POStatus.STATUS_EOP, res.returnStatus);
 
         // end of all input, still no results
         parentPlan.endOfAllInput = true;
-        res = partAggOp.getNext(dummyTuple);
+        res = partAggOp.getNextTuple();
         assertEquals(POStatus.STATUS_EOP, res.returnStatus);
 
     }
@@ -201,16 +202,6 @@ public class TestPOPartialAgg {
     }
 
     @Test
-    public void testPartialMultiInput1HashMemEmpty() throws Exception {
-        // input tuple has key, and bag containing SUM.Init output
-        // gby keys in consecutive row, they get aggregated even when
-        // hashmap is not given any memory
-        String[] inputTups = { "(1,(1L))", "(1,(2L))", "(2,(1L))" };
-        String[] outputTups = { "(1,(3L))", "(2,(1L))" };
-        checkInputAndOutput(inputTups, outputTups, true);
-    }
-
-    @Test
     public void testMultiInput1HashMemEmpty() throws Exception {
         // input tuple has key, and bag containing SUM.Init output
         String[] inputTups = { "(1,(1L))", "(2,(2L))", "(1,(2L))" };
@@ -244,7 +235,7 @@ public class TestPOPartialAgg {
 
         PigMapReduce.sJobConfInternal.set(new Configuration());
         if (isMapMemEmpty) {
-            PigMapReduce.sJobConfInternal.get().set("pig.cachedbag.memusage",
+            PigMapReduce.sJobConfInternal.get().set(PigConfiguration.PROP_CACHEDBAG_MEMUSAGE,
                     "0");
         }
 
@@ -259,7 +250,7 @@ public class TestPOPartialAgg {
             // attaching one input tuple, result tuple stays in operator, expect
             // EOP
             partAggOp.attachInput(t);
-            res = partAggOp.getNext(dummyTuple);
+            res = partAggOp.getNextTuple();
             if (isMapMemEmpty) {
                 addResults(res, outputs);
             } else {
@@ -273,16 +264,16 @@ public class TestPOPartialAgg {
         parentPlan.endOfAllInput = true;
 
         if (isMapMemEmpty) {
-            Result res = partAggOp.getNext(dummyTuple);
+            Result res = partAggOp.getNextTuple();
             // only one last output expected
             addResults(res, outputs);
 
-            res = partAggOp.getNext(dummyTuple);
+            res = partAggOp.getNextTuple();
             assertEquals(POStatus.STATUS_EOP, res.returnStatus);
             Util.compareActualAndExpectedResults(outputs, expectedOuts);
         } else {
             while (true) {
-                Result res = partAggOp.getNext(dummyTuple);
+                Result res = partAggOp.getNextTuple();
                 if (!addResults(res, outputs)) {
                     break;
                 }

@@ -54,6 +54,13 @@ public class UDFContext {
     /*
      *  internal pig use only - should NOT be called from user code
      */
+    public static void setUdfContext(UDFContext udfContext) {
+        tss.set(udfContext);
+    }
+
+    /*
+     *  internal pig use only - should NOT be called from user code
+     */
     public void setClientSystemProps(Properties properties) {
         clientSysProps = properties;
     }
@@ -197,6 +204,29 @@ public class UDFContext {
     
     public boolean isUDFConfEmpty() {
         return udfConfs.isEmpty();
+    }
+
+    /**
+     * Convenience method for UDF code to check where it runs (see PIG-2576)
+     * @return boolean type value
+     */
+    public boolean isFrontend() {
+        // mapred.task.id is for MR1
+        // mapreduce.job.application.attempt.id is for MR2
+        return (this.jconf == null
+                || (jconf.get("mapred.task.id") == null &&
+                    jconf.get("mapreduce.job.application.attempt.id") == null));
+    }
+    
+    /**
+     * Make a shallow copy of the context.
+     */
+    public UDFContext clone() {
+    	UDFContext other = new UDFContext();
+    	other.clientSysProps = this.clientSysProps;
+    	other.jconf = this.jconf;
+    	other.udfConfs = this.udfConfs;
+    	return other;
     }
     
     /**

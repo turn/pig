@@ -21,9 +21,9 @@ package org.apache.pig.builtin;
 import java.io.IOException;
 
 import org.apache.pig.EvalFunc;
-import org.apache.pig.data.BagFactory;
 import org.apache.pig.data.DataBag;
 import org.apache.pig.data.DataType;
+import org.apache.pig.data.NonSpillableDataBag;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.data.TupleFactory;
 import org.apache.pig.impl.logicalLayer.FrontendException;
@@ -45,8 +45,8 @@ import org.apache.pig.impl.logicalLayer.schema.Schema.FieldSchema;
  * schema (for bags/tuple columns), then the udf output schema would be a bag 
  * of tuples having a column of the type and inner-schema (if any) of the 
  * arguments. 
- * If the arguments are of type tuple/bag, then their innerschmea, including
- * the alias names should match.
+ * If the arguments are of type tuple/bag, then their inner schemas should match,
+ * though schema field aliases may differ.
  * If these conditions are not met the output schema will be a bag with null 
  * inner schema.
  *  
@@ -67,7 +67,16 @@ import org.apache.pig.impl.logicalLayer.schema.Schema.FieldSchema;
  *  example 3
  *  grunt> describe a;                                                             
  *  a: {a0: (x: int),a1: (y: int)}
- * -- note that the inner schema is different because the alises (x & y) are different
+ *  -- note that the inner schemas have matching types but different field aliases.
+ *  -- the aliases of the first argument (a0) will be used in output schema:
+ *  grunt> b = foreach a generate TOBAG(a0,a1);
+ *  grunt> describe b;
+ *  b: {{(x: int)}}
+ *
+ *  example 4
+ *  grunt> describe a;
+ *  a: {a0: (x: int),a1: (x: chararray)}
+ *  -- here the inner schemas do not match, so output schema is not well defined:
  *  grunt> b = foreach a generate TOBAG(a0,a1);                                    
  *  grunt> describe b;                                                             
  *  b: {{NULL}}
@@ -80,7 +89,9 @@ public class TOBAG extends EvalFunc<DataBag> {
     @Override
     public DataBag exec(Tuple input) throws IOException {
         try {
-            DataBag bag = BagFactory.getInstance().newDefaultBag();
+            // The assumption is that if the bag contents fits into
+            // an input tuple, it will not need to be spilled.
+            DataBag bag = new NonSpillableDataBag(input.size());
 
             for (int i = 0; i < input.size(); ++i) {
                 final Object object = input.get(i);
@@ -146,7 +157,7 @@ public class TOBAG extends EvalFunc<DataBag> {
             }
             return true;
         }
-        return currentSchema.equals(newSchema);
+        return Schema.equals(currentSchema, newSchema, false, true);
     }
     
 

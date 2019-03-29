@@ -61,6 +61,10 @@ public class POLoad extends PhysicalOperator {
     boolean setUpDone = false;
     // Alias for the POLoad
     private String signature;
+    // flag to distinguish user loads from MRCompiler loads.
+    private boolean isTmpLoad;
+    
+    private long limit=-1;
     
     public POLoad(OperatorKey k) {
         this(k,-1, null);
@@ -91,7 +95,7 @@ public class POLoad extends PhysicalOperator {
         loader = new ReadToEndLoader((LoadFunc)
                 PigContext.instantiateFuncFromSpec(lFile.getFuncSpec()), 
                 ConfigurationUtil.toConfiguration(pc.getProperties()), 
-                lFile.getFileName(),0);
+                lFile.getFileName(),0, signature);
     }
     
     /**
@@ -113,7 +117,7 @@ public class POLoad extends PhysicalOperator {
      *          of EOP and hence the tearDown of connection
      */
     @Override
-    public Result getNext(Tuple t) throws ExecException {
+    public Result getNextTuple() throws ExecException {
         if(!setUpDone && lFile!=null){
             try {
                 setUp();
@@ -175,6 +179,13 @@ public class POLoad extends PhysicalOperator {
         lFile = file;
     }
 
+    public void setIsTmpLoad(boolean tmp) {
+        isTmpLoad = tmp;
+    }
+
+    public boolean isTmpLoad() {
+        return isTmpLoad;
+    }
 
     public PigContext getPc() {
         return pc;
@@ -194,6 +205,10 @@ public class POLoad extends PhysicalOperator {
     }
     
     public LoadFunc getLoadFunc(){
+        if (this.loader==null) {
+            this.loader = (LoadFunc)PigContext.instantiateFuncFromSpec(lFile.getFuncSpec());
+            this.loader.setUDFContextSignature(signature);
+        }
         return this.loader;
     }
     
@@ -228,5 +243,13 @@ public class POLoad extends PhysicalOperator {
               return (Tuple) out;
         } else
           return (Tuple) out;
+    }
+
+    public long getLimit() {
+        return limit;
+    }
+
+    public void setLimit(long limit) {
+        this.limit = limit;
     }
 }

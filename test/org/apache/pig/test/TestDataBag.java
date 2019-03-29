@@ -17,28 +17,31 @@
  */
 package org.apache.pig.test;
 
+import static org.junit.Assert.*;
+
 import java.util.*;
 import java.io.DataInputStream;
-import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 
-import org.junit.Test;
+
 import org.apache.pig.data.*;
 import org.apache.pig.impl.util.Spillable;
+import org.junit.After;
+import org.junit.Test;
 
 
 /**
  * This class will exercise the basic Pig data model and members. It tests for proper behavior in
- * assigment and comparision, as well as function application.
+ * assignment and comparison, as well as function application.
  * 
  * @author dnm
  */
-public class TestDataBag extends junit.framework.TestCase {
+public class TestDataBag  {
 
-    private Random rand = new Random();
+    private Random rand = new Random(111);
 
     private class TestMemoryManager {
         ArrayList<Spillable> mManagedObjects = new ArrayList<Spillable>();
@@ -48,8 +51,9 @@ public class TestDataBag extends junit.framework.TestCase {
         }
 
         public void forceSpill() throws IOException {
-            Iterator<Spillable> i = mManagedObjects.iterator();
-            while (i.hasNext()) i.next().spill();
+            for (Spillable spillable : mManagedObjects) {
+                spillable.spill();
+            }
         }
     }
 
@@ -81,7 +85,8 @@ public class TestDataBag extends junit.framework.TestCase {
         }
     }
 
-    protected void tearDown() throws Exception {
+    @After
+    public void tearDown() throws Exception {
     	BagFactory.resetSelf();
         System.clearProperty("pig.data.bag.factory.name");
         System.clearProperty("pig.data.bag.factory.jar");
@@ -147,6 +152,36 @@ public class TestDataBag extends junit.framework.TestCase {
    // Test reading and writing default from file with three spills
     @Test
     public void testDefaultTripleSpill() throws Exception {
+        TestMemoryManager mgr = new TestMemoryManager();
+        LocalBagFactory factory = new LocalBagFactory(mgr);
+        DataBag b = factory.newDefaultBag();
+        ArrayList<Tuple> rightAnswer = new ArrayList<Tuple>(30);
+
+        // Write tuples into both
+        for (int j = 0; j < 3; j++) {
+            for (int i = 0; i < 10; i++) {
+                Tuple t = TupleFactory.getInstance().newTuple(new Integer(i));
+                b.add(t);
+                rightAnswer.add(t);
+            }
+            mgr.forceSpill();
+        }
+
+        // Read tuples back, hopefully they come out in the same order.
+        Iterator<Tuple> bIter = b.iterator();
+        Iterator<Tuple> rIter = rightAnswer.iterator();
+
+        while (rIter.hasNext()) {
+            assertTrue("bag ran out of tuples before answer", bIter.hasNext());
+            assertEquals("tuples should be the same", bIter.next(), rIter.next());
+        }
+
+        assertFalse("right answer ran out of tuples before the bag",
+            bIter.hasNext());
+    }
+
+    @Test
+    public void testTypedTupleSpill() throws Exception {
         TestMemoryManager mgr = new TestMemoryManager();
         LocalBagFactory factory = new LocalBagFactory(mgr);
         DataBag b = factory.newDefaultBag();
@@ -556,7 +591,7 @@ public class TestDataBag extends junit.framework.TestCase {
             mgr.forceSpill();
         }
         
-        assertEquals("Size of distinct data bag is incorrect", b.size(), rightAnswer.size());
+       assertEquals("Size of distinct data bag is incorrect", rightAnswer.size(), b.size());
 
         // Read tuples back, hopefully they come out in the same order.
         Iterator<Tuple> bIter = b.iterator();
@@ -1123,6 +1158,31 @@ public class TestDataBag extends junit.framework.TestCase {
         DataBag dfBag = new DefaultDataBag();
         dfBag.readFields(dis);
         assertTrue(dfBag.equals(stBag));
+    }
+    
+    // See PIG-2550
+    static class MyCustomTuple extends DefaultTuple {
+        private static final long serialVersionUID = 8156382697467819543L;
+        public MyCustomTuple() {
+            super();
+        }
+        public MyCustomTuple(Object t) {
+            super();
+            append(t);
+        }
+    }
+
+    @Test
+    public void testSpillCustomTuple() throws Exception {
+        DataBag bag = new DefaultDataBag();
+        Tuple t = new MyCustomTuple();
+        t.append(1);
+        t.append("hello");
+        bag.add(t);
+        bag.spill();
+        Iterator<Tuple> iter = bag.iterator();
+        Tuple t2 = iter.next();
+        assertTrue(t2.equals(t));
     }
     
     void processDataBag(DataBag bg, boolean doSpill) {

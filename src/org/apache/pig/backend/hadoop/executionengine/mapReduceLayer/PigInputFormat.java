@@ -116,7 +116,11 @@ public class PigInputFormat extends InputFormat<Text, Tuple> {
         
         InputFormat inputFormat = loadFunc.getInputFormat();
         
-        return new PigRecordReader(inputFormat, pigSplit, loadFunc, context);
+        List<Long> inpLimitLists = 
+                (ArrayList<Long>)ObjectSerializer.deserialize(
+                        conf.get("pig.inpLimits"));
+        
+        return new PigRecordReader(inputFormat, pigSplit, loadFunc, context, inpLimitLists.get(pigSplit.getInputIndex()));
     }
     
 
@@ -221,7 +225,7 @@ public class PigInputFormat extends InputFormat<Text, Tuple> {
                 Path path = new Path(inputs.get(i).getFileName());
                                 
                 FileSystem fs;
-                
+                boolean isFsPath = true;
                 try {
                     fs = path.getFileSystem(conf);
                 } catch (Exception e) {
@@ -231,6 +235,7 @@ public class PigInputFormat extends InputFormat<Text, Tuple> {
                     // getting the file system. That's
                     // ok, we just use the dfs in that case.
                     fs = new Path("/").getFileSystem(conf);
+                    isFsPath = false;
                 }
 
                 // if the execution is against Mapred DFS, set
@@ -270,7 +275,9 @@ public class PigInputFormat extends InputFormat<Text, Tuple> {
                         HadoopShims.createJobContext(inputSpecificJob.getConfiguration(), 
                                 jobcontext.getJobID()));
                 List<InputSplit> oneInputPigSplits = getPigSplits(
-                        oneInputSplits, i, inpTargets.get(i), fs.getDefaultBlockSize(), combinable, confClone);
+                        oneInputSplits, i, inpTargets.get(i),
+                        HadoopShims.getDefaultBlockSize(fs, isFsPath? path: fs.getWorkingDirectory()),
+                        combinable, confClone);
                 splits.addAll(oneInputPigSplits);
             } catch (ExecException ee) {
                 throw ee;

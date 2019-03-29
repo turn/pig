@@ -97,7 +97,7 @@ decoded_strings = FOREACH encoded_strings GENERATE UrlDecode(encoded, 'UTF-8');
    <title>Usage</title>
    <p>Use the AVG function to compute the average of the numeric values in a single-column bag. 
    AVG requires a preceding GROUP ALL statement for global averages and a GROUP BY statement for group averages.</p>
-   <p>The AVG function now ignores NULL values. </p>      
+   <p>The AVG function ignores NULL values. </p>      
    </section>
    
    <section>
@@ -215,6 +215,7 @@ DUMP C;
    <section>
    <title>Usage</title>
    <p>Use the CONCAT function to concatenate two expressions. The result values of the two expressions must have identical types.</p>
+   <p>If either subexpression is null, the resulting expression is null.</p>
    </section>
 
    
@@ -276,7 +277,7 @@ DUMP X;
     The COUNT function follows syntax semantics and ignores nulls. 
     What this means is that a tuple in the bag will not be counted if the FIRST FIELD in this tuple is NULL. 
     If you want to include NULL values in the count computation, use 
-    <a href="#COUNT-STAR">COUNT_STAR</a>.
+    <a href="#count-star">COUNT_STAR</a>.
    </p>   
    
    <p>
@@ -403,20 +404,20 @@ DUMP X;
    <p>Use the COUNT_STAR function to compute the number of elements in a bag.
    COUNT_STAR requires a preceding GROUP ALL statement for global counts and a GROUP BY statement for group counts.</p>
    <p>COUNT_STAR includes NULL values in the count computation 
-   (unlike <a href="#COUNT">COUNT</a>, which ignores NULL values).
+   (unlike <a href="#count">COUNT</a>, which ignores NULL values).
    </p>
    </section>
    
    <section>
    <title>Example</title>
-   <p>In this example COUNT_STAR is used the count the tuples in a bag.</p>
+   <p>In this example COUNT_STAR is used to count the tuples in a bag.</p>
 <source>
 X = FOREACH B GENERATE COUNT_STAR(A);
 </source>
    </section>
     </section>
   
-    <!-- ++++++++++++++++++++++++++++++++++++++++++++++ --> 
+   <!-- ++++++++++++++++++++++++++++++++++++++++++++++ --> 
    <section id="diff">
    <title>DIFF</title>
    <p>Compares two fields in a tuple.</p>
@@ -471,7 +472,7 @@ DUMP A;
 DESCRIBE A;
 a: {B1: {T1: (t1: int,t2: int)},B2: {T2: (f1: int,f2: int)}}
 
-X = FOREACH A DIFF(B1,B2);
+X = FOREACH A GENERATE DIFF(B1,B2);
 
 grunt> dump x;
 ({(0,1),(1,1)})
@@ -479,7 +480,6 @@ grunt> dump x;
 ({(6,7),(2,2)})
 </source>
    </section></section>
-
 
   <!-- ++++++++++++++++++++++++++++++++++++++++++++++ -->   
 <section id="isempty">
@@ -560,7 +560,9 @@ Y = filter X by IsEmpty(SSN_NAME);
    
    <section>
    <title>Usage</title>
-   <p>Use the MAX function to compute the maximum of the numeric values or chararrays in a single-column bag.</p></section>
+   <p>Use the MAX function to compute the maximum of the numeric values or chararrays in a single-column bag.</p>
+   <p>The MAX function ignores NULL values.</p>
+   </section>
    
    <section>
    <title>Example</title>
@@ -615,6 +617,9 @@ DUMP X;
                <p>chararray </p>
             </td>
             <td>
+               <p>datetime </p>
+            </td>
+            <td>
                <p>bytearray </p>
             </td>
          </tr>
@@ -636,6 +641,9 @@ DUMP X;
             </td>
             <td>
                <p>chararray </p>
+            </td>
+            <td>
+               <p>datetime </p>
             </td>
             <td>
                <p>cast as double</p>
@@ -676,7 +684,9 @@ DUMP X;
    <section>
    
    <title>Usage</title>
-   <p>Use the MIN function to compute the minimum of a set of numeric values or chararrays in a single-column bag.</p></section>
+   <p>Use the MIN function to compute the minimum of a set of numeric values or chararrays in a single-column bag.</p>
+   <p>The MIN function ignores NULL values.</p> 
+   </section>
    
    <section>
    <title>Example</title>
@@ -731,6 +741,9 @@ DUMP X;
                <p>chararray </p>
             </td>
             <td>
+               <p>datetime </p>
+            </td>
+            <td>
                <p>bytearray </p>
             </td>
          </tr>
@@ -754,12 +767,69 @@ DUMP X;
                <p>chararray </p>
             </td>
             <td>
+               <p>datetime </p>
+            </td>
+            <td>
                <p>cast as double</p>
             </td>
          </tr> 
    </table>
    </section></section>
    
+   <section id="plucktuple">
+     <title>PluckTuple</title>
+     <p>Allows the user to specify a string prefix, and then filter for the columns in a relation that begin with that prefix.</p>
+     
+     <section>
+       <title>Syntax</title>
+       <table>
+         <tr>
+           <td>
+             <p>DEFINE pluck PluckTuple(expression1)</p>
+             <p>pluck(expression2)</p>
+            </td>
+          </tr>
+        </table>
+     </section>
+   </section>
+   
+   <section>
+     <title>Terms</title>
+     <table>
+       <tr>
+         <td>
+           <p>expression1</p>
+         </td>
+         <td>
+           <p>A prefix to pluck by</p>
+         </td>
+       </tr>
+       <tr>
+         <td>
+           <p>expression2</p>
+         </td>
+         <td>
+           <p>The fields to apply the pluck to, usually '*'</p>
+         </td>
+       </tr>
+     </table>
+   </section>
+   
+   <section>
+   <title>Usage</title>
+   <p>Example:</p>
+<source>
+a = load 'a' as (x, y);
+b = load 'b' as (x, y);
+c = join a by x, b by x;
+DEFINE pluck PluckTuple('a::');
+d = foreach c generate FLATTEN(pluck(*));
+describe c;
+c: {a::x: bytearray,a::y: bytearray,b::x: bytearray,b::y: bytearray}
+describe d;
+d: {plucked::a::x: bytearray,plucked::a::y: bytearray}
+</source>
+   </section>
    
      <!-- ++++++++++++++++++++++++++++++++++++++++++++++ -->
    <section id="size">
@@ -793,6 +863,7 @@ DUMP X;
    <title>Usage</title>
    <p>Use the SIZE function to compute the number of elements based on the data type (see the Types Tables below). 
    SIZE includes NULL values in the size computation. SIZE is not algebraic.</p>
+   <p>If the tested object is null, the SIZE function returns null.</p>
    </section>
    
    <section>
@@ -890,6 +961,66 @@ DUMP X;
          </tr> 
    </table></section></section>
 
+   <!-- ++++++++++++++++++++++++++++++++++++++++++++++ --> 
+   <section id="subtract">
+   <title>SUBTRACT</title>
+   <p>Bags subtraction, SUBTRACT(bag1, bag2) = bags composed of bag1 elements not in bag2</p>
+   
+   <section>
+   <title>Syntax</title>
+   <table>
+      <tr>
+         <td>
+            <p>SUBTRACT(expression, expression)</p>
+         </td>
+      </tr> 
+   </table></section>
+   
+   <section>
+   <title>Terms</title>
+   <table>
+      <tr>
+         <td>
+            <p>expression</p>
+         </td>
+         <td>
+            <p>An expression with data type bag.</p>
+         </td>
+      </tr> 
+   </table>
+   </section>
+   
+   <section>
+   <title>Usage</title>
+   <p>SUBTRACT takes two bags as arguments and returns a new bag composed of the tuples of first bag are not in the second bag.</p> 
+   <p>If null, bag arguments are replaced by empty bags.<br></br>If arguments are not bags, an IOException is thrown.</p>
+   <p>The implementation assumes that both bags being passed to the SUBTRACT function will fit <strong>entirely 
+   into memory</strong> simultaneously, if this is not the case, SUBTRACT will still function but will be <strong>very</strong> slow.</p>
+   </section>
+   
+   <section>
+   <title>Example</title>
+   <p>In this example, SUBTRACT creates a new bag composed of B1 elements that are not in B2.</p>
+<source>
+A = LOAD 'bag_data' AS (B1:bag{T1:tuple(t1:int,t2:int)},B2:bag{T2:tuple(f1:int,f2:int)});
+
+DUMP A;
+({(8,9),(0,1),(1,2)},{(8,9),(1,1)})
+({(2,3),(4,5)},{(2,3),(4,5)})
+({(6,7),(3,7),(3,7)},{(2,2),(3,7)})
+
+DESCRIBE A;
+A: {B1: {T1: (t1: int,t2: int)},B2: {T2: (f1: int,f2: int)}}
+
+X = FOREACH A GENERATE SUBTRACT(B1,B2);
+
+DUMP X;
+({(0,1),(1,2)})
+({})
+({(6,7)})
+</source>
+   </section></section>
+
 
   <!-- ++++++++++++++++++++++++++++++++++++++++++++++ -->   
    <section id="sum">
@@ -921,7 +1052,9 @@ DUMP X;
    
    <section>
    <title>Usage</title>
-   <p>Use the SUM function to compute the sum of a set of numeric values in a single-column bag.</p></section>
+   <p>Use the SUM function to compute the sum of a set of numeric values in a single-column bag.</p>
+   <p>The SUM function ignores NULL values.</p> 
+   </section>
    
    <section>
    <title>Example</title>
@@ -1150,7 +1283,7 @@ store A into ‘myoutput.bz’;
    <p>Pig uses BinStorage to load and store the temporary data that is generated between multiple MapReduce jobs.</p>
    <ul>
    <li>BinStorage works with data that is represented on disk in machine-readable format. 
-   BinStorage does NOT support <a href="#Handling-Compression">compression</a>.</li>
+   BinStorage does NOT support <a href="#handling-compression">compression</a>.</li>
    <li>BinStorage supports multiple locations (files, directories, globs) as input.</li>
    </ul>
     <p></p>
@@ -1233,6 +1366,64 @@ dump X;
 </section>
  
  
+     <!-- ++++++++++++++++++++++++++++++++++++++++++++++ -->
+   <section id="jsonloadstore">
+   <title>JsonLoader, JsonStorage</title>
+   <p>Load or store JSON data.</p>
+   
+   <section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>JsonLoader( [‘schema’] ) </p>
+            </td>
+        </tr> 
+        <tr>
+            <td>
+               <p>JsonStorage( ) </p>
+            </td>
+        </tr> 
+   </table></section>
+   
+   <section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>schema</p>
+            </td>
+            <td>
+               <p>An optional Pig schema, in single quotes.</p>
+            </td>
+         </tr> 
+   </table></section>
+   
+   <section>
+   <title>Usage</title>
+   <p>Use JsonLoader to load JSON data. </p>
+   
+    <p>Use JsonStorage to store JSON data.</p>
+   
+   <p>Note that there is no concept of delimit in JsonLoader or JsonStorage. The data is encoded in standard JSON format. JsonLoader optionally takes a schema as the construct argument.</p>
+   </section>
+   
+   <section>
+   <title>Examples</title>
+   <p>In this example data is loaded with a schema. </p>
+<source>
+a = load 'a.json' using JsonLoader('a0:int,a1:{(a10:int,a11:chararray)},a2:(a20:double,a21:bytearray),a3:[chararray]');  
+</source>
+
+   <p>In this example data is loaded without a schema; it assumes there is a .pig_schema (produced by JsonStorage) in the input directory. </p>
+<source>
+a = load 'a.json' using JsonLoader(); 
+</source>
+   </section></section>
+    
+ 
+ 
+ 
 
    
      <!-- ++++++++++++++++++++++++++++++++++++++++++++++ -->
@@ -1286,7 +1477,7 @@ STORE X INTO 'output' USING PigDump();
    <table>
        <tr>
             <td>
-               <p>PigStorage(field_delimiter) </p>
+               <p>PigStorage( [field_delimiter] , ['options'] ) </p>
             </td>
          </tr> 
    </table></section>
@@ -1299,24 +1490,56 @@ STORE X INTO 'output' USING PigDump();
                <p id="field-delimiter">field_delimiter</p>
             </td>
             <td>
-               <p>Parameter. </p>
                <p>The default field delimiter is tab ('\t'). </p>
                <p>You can specify other characters as field delimiters; however, be sure to encase the characters in single quotes.</p>
+            </td>
+         </tr> 
+                <tr>
+            <td>
+               <p id="pigstorage-options">'options'</p>
+            </td>
+            <td>
+               <p>A string that contains space-separated options (‘optionA  optionB  optionC’)</p>
+               <p>Currently supported options are:</p>
+               <ul>
+                    <li>(‘schema’) - Stores the schema of the relation using a hidden JSON file.</li>
+                    <li>(‘noschema’) - Ignores a stored schema during the load.</li>
+                    <li>('tagsource') - (deprecated, Use tagPath instead) Add a first column indicates the input file of the record.</li>
+                    <li>('tagPath') - Add a first column indicates the input path of the record.</li>
+                    <li>('tagFile') - Add a first column indicates the input file name of the record.</li>
+               </ul>
             </td>
          </tr> 
    </table></section>
    
    <section>
    <title>Usage</title>
-   <p>PigStorage is the default function used by Pig to load/store the data. PigStorage supports structured text files (in human-readable UTF-8 format) in compressed or uncompressed form (see <a href="#Handling-Compression">Handling Compression</a>). All Pig <a href="basic.html#data-types">data types</a> (both simple and complex) can be read/written using this function. The input data to the load can be a file, a directory or a glob.</p>
+   <p>PigStorage is the default function used by Pig to load/store the data. PigStorage supports structured text files (in human-readable UTF-8 format) in compressed or uncompressed form (see <a href="#handling-compression">Handling Compression</a>). All Pig <a href="basic.html#data-types">data types</a> (both simple and complex) can be read/written using this function. The input data to the load can be a file, a directory or a glob.</p>
 
+ <p><strong>Load/Store Statements</strong></p> 
   <p>Load statements – PigStorage expects data to be formatted using field delimiters, either the tab character  ('\t') or other specified character.</p>
 
-   <p>Store statements – PigStorage outputs data using field deliminters, either the tab character  ('\t') or other specified character, and the line feed record delimiter ('\n').  </p>
+   <p>Store statements – PigStorage outputs data using field delimiters, either the tab character  ('\t') or other specified character, and the line feed record delimiter ('\n').  </p>
 
+ <p><strong>Field/Record Delimiters</strong></p> 
    <p>Field Delimiters – For load and store statements the default field delimiter is the tab character ('\t'). You can use other characters as field delimiters, but separators such as ^A or Ctrl-A should be represented in Unicode (\u0001) using UTF-16 encoding (see Wikipedia <a href="http://en.wikipedia.org/wiki/ASCII">ASCII</a>, <a href="http://en.wikipedia.org/wiki/Unicode">Unicode</a>, and <a href="http://en.wikipedia.org/wiki/UTF-16">UTF-16</a>).</p>
    
    <p>Record Deliminters – For load statements Pig interprets the line feed ( '\n' ), carriage return ( '\r' or CTRL-M) and combined CR + LF ( '\r\n' ) characters as record delimiters (do not use these characters as field delimiters). For store statements Pig uses the line feed ('\n') character as the record delimiter.</p>
+   
+<p><strong>Schemas</strong></p>    
+   
+<p>If the schema option is specified, a hidden ".pig_schema" file is created in the output directory when storing data. It is used by PigStorage (with or without -schema) during loading to determine the field names and types of the data without the need for a user to explicitly provide the schema in an as clause, unless <code>noschema</code> is specified. No attempt to merge conflicting schemas is made during loading. The first schema encountered during a file system scan is used. </p>   
+
+<p>Additionally, if the schema option is specified, a ".pig_headers" file is created in the output directory. This file simply lists the delimited aliases. This is intended to make export to tools that can read files with header lines easier (just cat the header to your data). </p>
+
+<p>If the schema option is NOT specified, a schema will not be written when storing data.</p>
+
+<p>If the noschema option is NOT specified, and a schema is found, it gets loaded when loading data.</p>
+
+<p>Note that regardless of whether or not you store the schema, you always need to specify the correct delimiter to read your data. If you store using delimiter "#" and then load using the default delimiter, your data will not be parsed correctly.</p>   
+
+<p><strong>Record Provenance</strong></p>
+<p>If tagPath or tagFile option is specified, PigStorage will add a pseudo-column INPUT_FILE_PATH or INPUT_FILE_NAME respectively to the beginning of the record. As the name suggests, it is the input file path/name containing this particular record. Please note tagsource is deprecated.</p>
    
   <p><strong>Complex Data Types</strong></p>   
   <p>The formats for complex data types are shown here:</p>
@@ -1354,7 +1577,7 @@ A = LOAD 'student' USING PigStorage('\t') AS (name: chararray, age:int, gpa: flo
 A = LOAD 'student' AS (name: chararray, age:int, gpa: float);
 </source>
    
-   <p>In this example PigStorage stores the contents of X into files with fields that are delimited with an asterisk ( * ). The STORE function specifies that the files will be located in a directory named output and that the files will be named part-nnnnn (for example, part-00000).</p>
+   <p>In this example PigStorage stores the contents of X into files with fields that are delimited with an asterisk ( * ). The STORE statement specifies that the files will be located in a directory named output and that the files will be named part-nnnnn (for example, part-00000).</p>
 <source>
 STORE X INTO  'output' USING PigStorage('*');
 </source>
@@ -1402,7 +1625,7 @@ a = load '1.txt' as (a0:{t:(m:map[int],d:double)});
    
    <section>
    <title>Usage</title>
-   <p>TextLoader works with unstructured data in UTF8 format. Each resulting tuple contains a single field with one line of input text. TextLoader also supports <a href="#Handling-Compression">compression</a>.</p>
+   <p>TextLoader works with unstructured data in UTF8 format. Each resulting tuple contains a single field with one line of input text. TextLoader also supports <a href="#handling-compression">compression</a>.</p>
    <p>Currently, TextLoader support for compression is limited.</p>  
    <p>TextLoader cannot be used to store data.</p>
    </section>
@@ -1413,8 +1636,474 @@ a = load '1.txt' as (a0:{t:(m:map[int],d:double)});
 <source>
 A = LOAD 'data' USING TextLoader();
 </source>
-   </section></section></section>
-   
+   </section></section>
+
+  <!-- ++++++++++++++++++++++++++++++++++++++++++++++ -->
+   <section id="HBaseStorage">
+   <title>HBaseStorage</title>
+   <p>Loads and stores data from an HBase table.</p>
+
+   <section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>HBaseStorage('columns', ['options'])</p>
+            </td>
+         </tr>
+   </table>
+   </section>
+
+   <section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>columns</p>
+            </td>
+            <td>
+               <p>A list of qualified HBase columns to read data from or store data to. 
+                  The column family name and column qualifier are seperated by a colon (:). 
+                  Only the columns used in the Pig script need to be specified. Columns are specified
+                  in one of three different ways as described below.</p>
+               <ul>
+               <li>Explicitly specify a column family and column qualifier (e.g., user_info:id). This
+                   will produce a scalar in the resultant tuple.</li>
+               <li>Specify a column family and a portion of column qualifier name as a prefix followed
+                   by an asterisk (i.e., user_info:address_*). This approach is used to read one or
+                   more columns from the same column family with a matching descriptor prefix.
+                   The datatype for this field will be a map of column descriptor name to field value. 
+                   Note that combining this style of prefix with a long list of fully qualified
+                   column descriptor names could cause perfomance degredation on the HBase scan.
+                   This will produce a Pig map in the resultant tuple with column descriptors as keys.</li>
+               <li>Specify all the columns of a column family using the column family name followed
+                   by an asterisk (i.e., user_info:*). This will produce a Pig map in the resultant
+                   tuple with column descriptors as keys.</li>
+               </ul>
+            </td>
+         </tr>
+       <tr>
+            <td>
+               <p>'options'</p>
+            </td>
+            <td>
+               <p>A string that contains space-separated options (&lsquo;-optionA=valueA -optionB=valueB -optionC=valueC&rsquo;)</p>
+               <p>Currently supported options are:</p>
+               <ul>
+                <li>-loadKey=(true|false) Load the row key as the first value in every tuple
+                    returned from HBase (default=false)</li>
+                <li>-gt=minKeyVal Return rows with a rowKey greater than minKeyVal</li>
+                <li>-lt=maxKeyVal Return rows with a rowKey less than maxKeyVal</li>
+                <li>-gte=minKeyVal Return rows with a rowKey greater than or equal to minKeyVal</li>
+                <li>-lte=maxKeyVal Return rows with a rowKey less than or equal to maxKeyVal</li>
+                <li>-limit=numRowsPerRegion Max number of rows to retrieve per region</li>
+                <li>-caching=numRows Number of rows to cache (faster scans, more memory)</li>
+                <li>-delim=delimiter Column delimiter in columns list (default is whitespace)</li>
+                <li>-ignoreWhitespace=(true|false) When delim is set to something other than
+                    whitespace, ignore spaces when parsing column list (default=true)</li>
+                <li>-caster=(HBaseBinaryConverter|Utf8StorageConverter) Class name of Caster to use
+                    to convert values (default=Utf8StorageConverter). The default caster can be
+                    overridden with the pig.hbase.caster config param. Casters must implement LoadStoreCaster.</li>
+                <li>-noWAL=(true|false) During storage, sets the write ahead to false for faster
+                    loading into HBase (default=false). To be used with extreme caution since this
+                    could result in data loss (see <a href="http://hbase.apache.org/book.html#perf.hbase.client.putwal">http://hbase.apache.org/book.html#perf.hbase.client.putwal</a>).</li>
+                <li>-minTimestamp=timestamp Return cell values that have a creation timestamp
+                    greater or equal to this value</li>
+                <li>-maxTimestamp=timestamp Return cell values that have a creation timestamp
+                    less than this value</li>
+                <li>-timestamp=timestamp Return cell values that have a creation timestamp equal to
+                    this value</li>
+               </ul>
+            </td>
+         </tr>
+   </table>
+   </section>
+
+   <section>
+   <title>Usage</title>
+   <p>HBaseStorage stores and loads data from HBase. The function takes two arguments. The first
+       argument is a space seperated list of columns. The second optional argument is a
+       space seperated list of options. Column syntax and available options are listed above.  
+       Note that HBaseStorage always disable split combination.</p>
+   </section>
+
+   <section>
+   <title>Load Example</title>
+   <p>In this example HBaseStorage is used with the LOAD function with an explicit schema.</p>
+<source>
+raw = LOAD 'hbase://SomeTableName'
+      USING org.apache.pig.backend.hadoop.hbase.HBaseStorage(
+      'info:first_name info:last_name tags:work_* info:*', '-loadKey=true -limit=5') AS
+      (id:bytearray, first_name:chararray, last_name:chararray, tags_map:map[], info_map:map[]);
+</source>
+   <p>The datatypes of the columns are declared with the "AS" clause. The first_name and last_name
+       columns are specified as fully qualified column names with a chararray datatype. The third
+       specification of tags:work_* requests a set of columns in the tags column family that begin
+       with "work_". There can be zero, one or more columns of that type in the HBase table. The
+       type is specified as tags_map:map[]. This indicates that the set of column values returned
+       will be accessed as a map, where the key is the column name and the value is the cell value
+       of the column. The fourth column specification is also a map of column descriptors to cell
+       values.</p>
+   <p>When the type of the column is specified as a map in the "AS" clause, the map keys are the
+       column descriptor names and the data type is chararray. The datatype of the columns values can
+       be declared explicitly as shown in the examples below:</p>
+   <ul>
+   <li>tags_map[chararray] - In this case, the column values are all declared to be of type chararray</li>
+   <li>tags_map[int] - In this case, the column values are all declared to be of type int.</li>
+   </ul>
+   </section>
+
+   <section>
+   <title>Store Example</title>
+   <p>In this example HBaseStorage is used to store a relation into HBase.</p>
+<source>
+A = LOAD 'hdfs_users' AS (id:bytearray, first_name:chararray, last_name:chararray);
+STORE A INTO 'hbase://users_table' USING org.apache.pig.backend.hadoop.hbase.HBaseStorage(
+    'info:first_name info:last_name');
+</source>
+   <p>In the example above relation A is loaded from HDFS and stored in HBase. Note that the schema
+       of relation A is a tuple of size 3, but only two column descriptor names are passed to the
+       HBaseStorage constructor. This is because the first entry in the tuple is used as the HBase
+       rowKey.</p>
+   </section>
+   </section>
+
+  <!-- ++++++++++++++++++++++++++++++++++++++++++++++ -->
+   <section id="AvroStorage">
+   <title>AvroStorage</title>
+   <p>Loads and stores data from Avro files.</p>
+
+   <section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>Avrostorage(['schema|record name'], ['options'])</p>
+            </td>
+         </tr>
+   </table>
+   </section>
+
+   <section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>schema</p>
+            </td>
+            <td>
+               <p>A JSON string specifying the Avro schema for the input. You may specify an explicit schema
+                  when storing data or when loading data. When you manually provide a schema, Pig
+                  will use the provided schema for serialization and deserialization. This means that
+                  you can provide an explicit schema when saving data to simplify the output (for example
+                  by removing nullable unions), or rename fields. This also means that you can provide
+                  an explicit schema when reading data to only read a subset of the fields in each record.</p>
+                  
+                  <p>See 
+                  <a href="http://avro.apache.org/docs/current/spec.html"> the Apache Avro Documentation</a>
+                  for more details on how to specify a valid schema.</p>
+            </td>
+         </tr>
+       <tr>
+            <td>
+               <p>record name</p>
+            </td>
+            <td>
+               <p>When storing a bag of tuples with AvroStorage, if you do not want to specify
+               the full schema, you may specify the avro record name instead. (AvroStorage will
+               determine that the argument isn't a valid schema definition and use it as a
+               variable name instead.)</p>
+            </td>
+         </tr>
+
+       <tr>
+            <td>
+               <p>'options'</p>
+            </td>
+            <td>
+               <p>A string that contains space-separated options (&lsquo;-optionA valueA -optionB valueB -optionC &rsquo;)</p>
+               <p>Currently supported options are:</p>
+               <ul>
+                <li>-namespace nameSpace or -n nameSpace Explicitly specify the namespace
+                    field in Avro records when storing data</li>
+                <li>-schemfile schemaFile or -f schemaFile Specify the input (or output) schema from
+                    an external file. Pig assumes that the file is located on the default filesystem,
+                    but you may use an explicity URL to unambigously specify the location. (For example, if
+                    the data was on your local file system in /stuff/schemafile.avsc, you
+                    could specify "-f file:///stuff/schemafile.avsc" to specify the location. If the
+                    data was on HDFS under /yourdirectory/schemafile.avsc, you could specify
+                    "-f hdfs:///yourdirectory/schemafile.avsc"). Pig expects this to be a 
+                    text file, containing a valid avro schema.</li>
+                <li>-examplefile exampleFile or -e exampleFile Specify the input (or output)
+                    schema using another Avro file as an example. Pig assumes that the file is located on the default filesystem,
+                    but you may use and explicity URL to specify the location. Pig
+                    expects this to be an Avro data file.</li>
+                <li>-allowrecursive or -r Specify whether to allow recursive schema definitions (the
+                    default is to throw an exception if Pig encounters a recursive schema). When 
+                    reading objects with recursive definitions, Pig will translate Avro records to
+                    schema-less tuples; the Pig Schema for the object may not match the data exactly.</li>
+                <li>-doublecolons or -d Specify how to handle Pig schemas that contain double-colons
+                    when writing data in Avro format. (When you join two bags in Pig, Pig will automatically
+                    label the fields in the output Tuples with names that contain double-colons). If
+                    you select this option, AvroStorage will translate names with double colons into
+                    names with double underscores. </li>
+               </ul>
+            </td>
+         </tr>
+   </table>
+   </section>
+
+   <section>
+   <title>Usage</title>
+   <p>AvroStorage stores and loads data from Avro files. Often, you can load and
+      store data using AvroStorage without knowing much about the Avros serialization format.
+      AvroStorage will attempt to automatically translate a pig schema and pig data to avro data,
+      or avro data to pig data.</p>
+   <p>By default, when you use AvoStorage to load data, AvroStorage will use depth first search to
+      find a valid Avro file on the input path, then use the schema from that file to load the
+      data. When you use AvroStorage to store data, AvroStorage will attempt to translate the
+      Pig schema to an equivalent Avro schema. You can manually specify the schema by providing
+      an explicit schema in Pig, loading a schema from an external schema file, or explicitly telling
+      Pig to read the schema from a specific avro file.</p>
+   <p>To compress your output with AvroStorage, you need to use the correct Avro properties for compression.
+       For example, to enable compression using deflate level 5, you would specify</p>
+<source>
+SET avro.output.codec 'deflate'
+SET avro.mapred.deflate.level 5
+</source>
+   <p>Valid values for avro.output.codec include deflate, snappy, and null.</p>
+   <p>There are a few key differences between Avro and Pig data, and in some cases
+      it helps to understand the differences between the Avro and Pig data models.
+      Before writing Pig data to Avro (or creating Avro files to use in Pig), keep in
+      mind that there might not be an equivalent Avro Schema for every Pig Schema (and
+      vice versa):</p>
+   <ul>
+    <li><strong>Recursive schema definitions</strong> You cannot define schemas recursively in Pig,
+      but you can define schemas recursively in Avro.</li>
+    <li><strong>Allowed characters</strong> Pig schemas may sometimes contain characters like colons (":")
+        that are illegal in Avro names.</li>
+    <li><strong>Unions</strong> In Avro, you can define an object that may be one of several different
+    types (including complex types such as records). In Pig, you cannot.</li>
+    <li><strong>Enums</strong> Avro allows you to define enums to efficiently and abstractly 
+        represent categorical variable, but Pig does not.</li>
+    <li><strong>Fixed Length Byte Arrays</strong> Avro allows you to define fixed length byte arrays, 
+        but Pig does not.</li>
+    <li><strong>Nullable values</strong> In Pig, all types are nullable. In Avro, they are not. </li>
+   </ul>
+   <p>Here is how AvroStorage translates Pig values to Avro:</p>
+   <table>
+    <tr>
+     <td></td>
+     <td>Original Pig Type</td>
+     <td>Translated Avro Type</td>
+    </tr>
+    <tr>
+     <td>Integers</td>
+     <td>int</td>
+     <td>["int","null"]</td>
+    </tr>
+    <tr>
+     <td>Longs</td>
+     <td>long</td>
+     <td>["long,"null"]</td>
+    </tr>
+    <tr>
+     <td>Floats</td>
+     <td>float</td>
+     <td>["float","null"]</td>
+    </tr>
+    <tr>
+     <td>Doubles</td>
+     <td>double</td>
+     <td>["double","null"]</td>
+    </tr>
+    <tr>
+     <td>Strings</td>
+     <td>chararray</td>
+     <td>["string","null"]</td>
+    </tr>
+    <tr>
+     <td>Bytes</td>
+     <td>bytearray</td>
+     <td>["bytes","null"]</td>
+    </tr>
+    <tr>
+     <td>Booleans</td>
+     <td>boolean</td>
+     <td>["boolean","null"]</td>
+    </tr>
+    <tr>
+     <td>Tuples</td>
+     <td>tuple</td>
+     <td>The Pig Tuple schema will be translated to an union of and Avro record with an equivalent
+         schem and null.</td>
+    </tr>
+    <tr>
+     <td>Bags of Tuples</td>
+     <td>bag</td>
+     <td>The Pig Tuple schema will be translated to a union of an array of records with an equivalent
+         schema and null.</td>
+    </tr>
+    <tr>
+     <td>Maps</td>
+     <td>map</td>
+     <td>The Pig Tuple schema will be translated to a union of a map of records with an equivalent
+         schema and null.</td>
+    </tr>
+   </table>
+
+   <p>Here is how AvroStorage translates Avro values to Pig:</p>
+   <table>
+    <tr>
+     <td></td>
+     <td>Original Avro Types</td>
+     <td>Translated Pig Type</td>
+    </tr>
+    <tr>
+     <td>Integers</td>
+     <td>["int","null"] or "int"</td>
+     <td>int</td>
+    </tr>
+    <tr>
+     <td>Longs</td>
+     <td>["long,"null"] or "long"</td>
+     <td>long</td>
+    </tr>
+    <tr>
+     <td>Floats</td>
+     <td>["float","null"] or "float"</td>
+     <td>float</td>
+    </tr>
+    <tr>
+     <td>Doubles</td>
+     <td>["double","null"] or "double"</td>
+     <td>double</td>
+    </tr>
+    <tr>
+     <td>Strings</td>
+     <td>["string","null"] or "string"</td> 
+     <td>chararray</td>
+    </tr>
+    <tr>
+     <td>Enums</td>
+     <td>Either an enum or a union of an enum and null</td> 
+     <td>chararray</td>
+    </tr>
+    <tr>
+     <td>Bytes</td>
+     <td>["bytes","null"] or "bytes"</td>
+     <td>bytearray</td>
+    </tr>
+    <tr>
+     <td>Fixes</td>
+     <td>Either a fixed length byte array, or a union of a fixed length array and null</td> 
+     <td>bytearray</td>
+    </tr>    
+    <tr>
+     <td>Booleans</td>
+     <td>["boolean","null"] or "boolean"</td>
+     <td>boolean</td>
+    </tr>
+    <tr>
+     <td>Tuples</td>
+     <td>Either a record type, or a union or a record and null</td>
+     <td>tuple</td>
+    </tr>
+    <tr>
+     <td>Bags of Tuples</td>
+     <td>Either an array, or a union of an array and null</td>
+     <td>bag</td>
+    </tr>
+    <tr>
+     <td>Maps</td>
+     <td>Either a map, or a union of a map and null</td>
+     <td>map</td>
+    </tr>
+   </table>
+
+   <p> In many cases, AvroStorage will automatically translate your data correctly and you will not
+       need to provide any more information to AvroStorage. But sometimes, it may be convenient to
+       manually provide a schema to AvroStorge. See the example selection below for examples
+       on manually specifying a schema with AvroStorage.
+   </p>   
+   </section>
+   <section>
+   <title>Load Examples</title>
+    <p>Suppose that you were provided with a file of avro data (located in 'stuff') 
+       with the following schema:</p>
+<source>
+{"type" : "record",
+ "name" : "stuff",
+ "fields" : [
+   {"name" : "label", "type" : "string"}, 
+   {"name" : "value", "type" : "int"},
+   {"name" : "marketingPlans", "type" : ["string", "bytearray", "null"]}
+  ]
+}
+</source>
+    <p>Additionally,  suppose that you don't need the value of the field "marketingPlans." 
+       (That's a good thing, because AvroStorage doesn't know how to translate that Avro schema
+       to a Pig schema). To load only the fieds "label" and "value" into Pig, you can
+       manually specify the schema passed to AvroStorage:</p>
+<source>
+measurements = LOAD 'stuff' USING AvroStorage(
+  '{"type":"record","name":"measurement","fields":[{"name":"label","type":"string"},{"name":"value","type":"int"}]}'
+  );
+</source>
+   </section>
+
+   <section>
+   <title>Store Examples</title>
+    <p>Suppose that you are saving a bag called measurements with the schema:</p>
+<source>
+measurements:{measurement:(label:chararray,value:int)}
+</source>
+    <p>To store this bag into a file called "measurements", you can use a statement like:</p>
+<source>
+STORE measurements INTO 'measurements' USING AvroStorage('measurement');
+</source>
+    <p>AvroStorage will translate this to the Avro schema</p>
+<source>
+{"type":"record", 
+ "name":"measurement",
+ "fields" : [
+   {"name" : "label", "type" : ["string", "null"]}, 
+   {"name" : "value", "type" : ["int", "null"]}
+  ]
+} 
+</source>
+    <p>But suppose that you knew that the label and value fields would never be null. You could
+       define a more precise schema manually using a statement like:</p>
+<source>
+STORE measurements INTO 'measurements' USING AvroStorage(
+  '{"type":"record","name":"measurement","fields":[{"name":"label","type":"string"},{"name":"value","type":"int"}]}'
+  );
+</source>
+   </section>
+   </section>
+
+  <!-- ++++++++++++++++++++++++++++++++++++++++++++++ -->
+   <section id="TrevniStorage">
+   <title>TrevniStorage</title>
+   <p>Loads and stores data from Trevni files.</p>
+
+   <section>
+   <title>Syntax</title>
+   <table>
+    <tr>
+     <td>
+      <p>TrevniStorage(['schema|record name'], ['options'])</p>
+     </td>
+    </tr>
+   </table>
+   </section>
+   <p>Trevni is a column-oriented storage format that is part of the Apache Avro project. Trevni is
+   closely related to Avro.</p>
+   <p>Likewise, TrevniStorage is very closely related to AvroStorage, and shares the same options as
+   AvroStorage. See <a href="#AvroStorage">AvroStorage</a> for a detailed description of the
+   arguments for TrevniStorage.</p>
+   </section>
+</section>
 
 <!-- ======================================================== -->  
 <!-- ======================================================== -->  
@@ -1422,8 +2111,8 @@ A = LOAD 'data' USING TextLoader();
 <section id="math-functions">
 <title>Math Functions</title>
 
-<p>For general information about these functions, see the <a href="http://download.oracle.com/javase/6/docs/api/">Java API Specification</a>, 
-<a href="http://download.oracle.com/javase/6/docs/api/java/lang/Math.html">Class Math</a>. Note the following:</p>
+<p>For general information about these functions, see the <a href="http://docs.oracle.com/javase/6/docs/api/">Java API Specification</a>, 
+<a href="http://docs.oracle.com/javase/6/docs/api/java/lang/Math.html">Class Math</a>. Note the following:</p>
 
 <ul>
 		<li>
@@ -1940,7 +2629,7 @@ This function never increases the result value.
                <p>x</p>
             </td>
             <td>
-               <p>CEIL(x)</p>
+               <p>FLOOR(x)</p>
             </td>
          </tr>
         
@@ -2178,7 +2867,7 @@ Use the ROUND function to return the value of an expression rounded to an intege
                <p>x</p>
             </td>
             <td>
-               <p>CEIL(x)</p>
+               <p>ROUND(x)</p>
             </td>
          </tr>
         
@@ -2460,8 +3149,8 @@ Use the TANH function to return the hyperbolic tangent of an expression.
 <section id="string-functions">
 <title>String Functions</title>
 
-<p>For general information about these functions, see the <a href="http://download.oracle.com/javase/6/docs/api/">Java API Specification</a>, 
-<a href="http://download.oracle.com/javase/6/docs/api/java/lang/String.html">Class String</a>. Note the following:</p>
+<p>For general information about these functions, see the <a href="http://docs.oracle.com/javase/6/docs/api/">Java API Specification</a>, 
+<a href="http://docs.oracle.com/javase/6/docs/api/java/lang/String.html">Class String</a>. Note the following:</p>
 
 <ul>
 	<li>
@@ -2477,6 +3166,101 @@ Use the TANH function to return the hyperbolic tangent of an expression.
 </ul>
  
    <!-- ++++++++++++++++++++++++++++++++++++++++++++++ -->
+<section id="endswith">
+   <title>ENDSWITH</title>
+   <p>Tests inputs to determine if the first argument ends with the string in the second. </p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>ENDSWITH(string, testAgainst)</p>
+            </td>
+         </tr> 
+        
+   </table></section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>string</p>
+            </td>
+            <td>
+               <p>The string to be tested.</p>
+            </td>
+         </tr> 
+         <tr>
+            <td>
+               <p>testAgainst</p>
+            </td>
+            <td>
+               <p>The string to test against.</p>
+            </td>
+         </tr> 
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the ENDSWITH function to determine if the first argument ends with the string in the second.
+     </p>
+     <p>
+For example, ENDSWITH ('foobar', 'foo') will false, whereas ENDSWITH ('foobar', 'bar') will return true.
+     </p>
+</section>
+</section> 
+
+<!-- ++++++++++++++++++++++++++++++++++++++++++++++ -->
+<section id="equalsignorecase">
+   <title>EqualsIgnoreCase</title>
+   <p>Compares two Strings ignoring case considerations. </p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>EqualsIgnoreCase(string1, string2)</p>
+            </td>
+         </tr>
+
+   </table></section>
+  
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>string1</p>
+            </td>
+            <td>
+               <p>The source string.</p>
+            </td>
+         </tr>
+         <tr>
+            <td>
+               <p>string2</p>
+            </td>
+            <td>
+               <p>The string to compare against.</p>
+            </td>
+         </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the EqualsIgnoreCase function to determine if two string are equal ignoring case.
+     </p>
+</section>
+</section>
+
+<!-- ======================================================== -->  
  <section id="indexof">
    <title>INDEXOF</title>
    <p>Returns the index of the first occurrence of a character in a string, searching forward from a start index. </p>
@@ -2535,14 +3319,14 @@ Use the INDEXOF function to determine the index of the first occurrence of a cha
 <!-- ======================================================== -->  
  <section id="last-index-of">
    <title>LAST_INDEX_OF</title>
-   <p>Returns the index of the last occurrence of a character in a string, searching backward from a start index. </p>
+   <p>Returns the index of the last occurrence of a character in a string, searching backward from the end of the string. </p>
 
 <section>
    <title>Syntax</title>
    <table>
        <tr>
             <td>
-               <p>LAST_INDEX_OF(expression)</p>
+               <p>LAST_INDEX_OF(string, 'character')</p>
             </td>
          </tr>
    </table>
@@ -2567,22 +3351,13 @@ Use the INDEXOF function to determine the index of the first occurrence of a cha
                <p>The character being searched for, in quotes.</p>
             </td>
          </tr> 
-                <tr>
-            <td>
-               <p>startIndex</p>
-            </td>
-            <td>
-               <p>The index from which to begin the backward search.</p>
-               <p>The string index begins with zero (0).</p>
-            </td>
-         </tr> 
    </table>
 </section>
 
 <section>
      <title>Usage</title>
      <p>
-Use the LAST_INDEX_OF function to determine the index of the last occurrence of a character in a string. The backward search for the character begins at the designated start index.
+Use the LAST_INDEX_OF function to determine the index of the last occurrence of a character in a string. The backward search for the character begins at the end of the string.
      </p>
 </section>
 </section> 
@@ -2664,6 +3439,43 @@ Use the LOWER function to convert all characters in a string to lower case.
 </section>
 </section> 
 
+<!-- ======================================================== -->  
+ <section id="ltrim">
+   <title>LTRIM</title>
+   <p>Returns a copy of a string with only leading white space removed.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>LTRIM(expression)</p>
+            </td>
+         </tr> 
+        
+   </table></section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>expression</p>
+            </td>
+            <td>
+               <p>An expression whose result is chararray. </p>
+            </td>
+         </tr> 
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the LTRIM function to remove leading white space from a string.
+     </p>
+</section>
+</section> 
 
 <!-- ======================================================== -->
  <section id="regex-extract">
@@ -2728,7 +3540,7 @@ The function returns a string that corresponds to the matched group in the posit
 This example will return the string '192.168.1.5'.
      </p>
  <source>
-REGEX_EXTRACT('192.168.1.5:8020', '(.*)\:(.*)', 1);
+REGEX_EXTRACT('192.168.1.5:8020', '(.*):(.*)', 1);
 </source>
      
  </section>
@@ -2745,7 +3557,7 @@ REGEX_EXTRACT('192.168.1.5:8020', '(.*)\:(.*)', 1);
    <table>
        <tr>
             <td>
-               <p>REGEX_EXTRACT (string, regex)</p>
+               <p>REGEX_EXTRACT_ALL (string, regex)</p>
             </td>
          </tr>
    </table>
@@ -2808,7 +3620,7 @@ REGEX_EXTRACT_ALL('192.168.1.5:8020', '(.*)\:(.*)');
    <table>
        <tr>
             <td>
-               <p>REPLACE(string, 'oldChar', 'newChar');</p>
+               <p>REPLACE(string, 'regExp', 'newChar');</p>
             </td>
          </tr>  
    </table>
@@ -2827,10 +3639,10 @@ REGEX_EXTRACT_ALL('192.168.1.5:8020', '(.*)\:(.*)');
          </tr> 
                 <tr>
             <td>
-               <p>'oldChar'</p>
+               <p>'regExp'</p>
             </td>
             <td>
-               <p>The existing characters being replaced, in quotes. </p>
+               <p>The regular expression to which the string is to be matched, in quotes.</p>
             </td>
          </tr> 
                 <tr>
@@ -2851,7 +3663,104 @@ Use the REPLACE function to replace existing characters in a string with new cha
      </p>
      <p>
 For example, to change "open source software" to "open source wiki" use this statement: 
-REPLACE(string,'software','wiki');
+REPLACE(string,'software','wiki')
+     </p>
+     <p>
+Note that the REPLACE function is internally implemented using
+<a href="http://docs.oracle.com/javase/6/docs/api/java/lang/String.html#replaceAll(java.lang.String, java.lang.String)">
+java.string.replaceAll(String regex, String replacement)</a>
+where 'regExp' and 'newChar' are passed as the 1st and 2nd argument respectively.
+If you want to replace 
+<a href="http://docs.oracle.com/javase/6/docs/api/java/util/regex/Pattern.html#bs">
+special characters</a> such as '[' in the string literal, it is necessary to escape them in 'regExp'
+by prefixing them with double backslashes (e.g. '\\[').
+    </p>
+</section>
+</section> 
+
+<!-- ======================================================== -->  
+ <section id="rtrim">
+   <title>RTRIM</title>
+   <p>Returns a copy of a string with only trailing white space removed.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>RTRIM(expression)</p>
+            </td>
+         </tr> 
+        
+   </table></section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>expression</p>
+            </td>
+            <td>
+               <p>An expression whose result is chararray. </p>
+            </td>
+         </tr> 
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the RTRIM function to remove trailing white space from a string.
+     </p>
+</section>
+</section> 
+
+<!-- ======================================================== -->  
+<section id="startswith">
+   <title>STARTSWITH</title>
+   <p>Tests inputs to determine if the first argument starts with the string in the second. </p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>STARTSWITH(string, testAgainst)</p>
+            </td>
+         </tr> 
+        
+   </table></section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>string</p>
+            </td>
+            <td>
+               <p>The string to be tested.</p>
+            </td>
+         </tr> 
+         <tr>
+            <td>
+               <p>testAgainst</p>
+            </td>
+            <td>
+               <p>The string to test against.</p>
+            </td>
+         </tr> 
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the STARTSWITH function to determine if the first argument starts with the string in the second.
+     </p>
+     <p>
+For example, STARTSWITH ('foobar', 'foo') will true, whereas STARTSWITH ('foobar', 'bar') will return false.
      </p>
 </section>
 </section> 
@@ -2893,10 +3802,12 @@ REPLACE(string,'software','wiki');
          </tr> 
                 <tr>
             <td>
-               <p>Limit</p>
+               <p>limit</p>
             </td>
             <td>
-               <p>The number of times the pattern (the compiled representation of the regular expression) is applied.</p>
+	       <p>If the value is positive, the pattern (the compiled representation of the regular expression) is applied at most limit-1 times, therefore the value of the argument means the maximum length of the result tuple. The last element of the result tuple will contain all input after the last match.</p>
+	       <p>If the value is negative, no limit is applied for the length of the result tuple.</p>
+	       <p>If the value is zero, no limit is applied for the length of the result tuple too, and trailing empty strings (if any) will be removed.</p>
             </td>
          </tr> 
    </table>
@@ -3088,6 +3999,1055 @@ Use the UPPER function to convert all characters in a string to upper case.
 </section>
 <!-- End String Functions -->
 
+<!-- ======================================================== -->
+<!-- ======================================================== -->   
+
+<!-- Datetime Functions -->
+<section id="datetime-functions">
+<title>Datetime Functions</title>
+
+<p>
+For general information about datetime type operations, see the <a href="http://docs.oracle.com/javase/6/docs/api/">Java API Specification</a>, 
+<a href="http://docs.oracle.com/javase/6/docs/api/java/util/Date.html">Java Date class</a>, and <a href="http://joda-time.sourceforge.net/apidocs/index.html">JODA DateTime class</a>.
+And for the information of ISO date and time formats, please refer to <a href="http://www.w3.org/TR/NOTE-datetime">Date and Time Formats</a>.
+</p>
+
+<!-- ++++++++++++++++++++++++++++++++++++++++++++++ -->
+ <section id="add-duration">
+   <title>AddDuration</title>
+   <p>Returns the result of a DateTime object plus a <a href="http://en.wikipedia.org/wiki/ISO_8601#Durations">Duration object</a>.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>AddDuration(datetime, duration)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+         </tr> 
+                <tr>
+            <td>
+               <p>duration</p>
+            </td>
+            <td>
+               <p>The duration string in <a href="http://en.wikipedia.org/wiki/ISO_8601#Durations">ISO 8601 format</a>.</p>
+            </td>
+         </tr> 
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the AddDuration function to created a new datetime object by add some duration to a given datetime object.
+     </p>
+
+</section>
+</section> 
+
+<!-- ======================================================== -->  
+ <section id="current-time">
+   <title>CurrentTime</title>
+   <p>Returns the DateTime object of the current time.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>CurrentTime()</p>
+            </td>
+         </tr>
+   </table>
+   </section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the CurrentTime function to generate a datetime object of current timestamp with millisecond accuracy.
+     </p>
+</section>
+</section> 
+
+
+<!-- ======================================================== -->  
+ <section id="days-between">
+   <title>DaysBetween</title>
+   <p>Returns the number of days between two DateTime objects.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>DaysBetween(datetime1, datetime2)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime1</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+        </tr> 
+        <tr>
+            <td>
+               <p>datetime2</p>
+            </td>
+            <td>
+               <p>Another datetime object.</p>
+            </td>
+        </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the DaysBetween function to get the number of days between the two given datetime objects. 
+     </p>
+</section>
+</section>
+
+<!-- ======================================================== -->  
+ <section id="get-day">
+   <title>GetDay</title>
+   <p>Returns the day of a month from a DateTime object.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>GetDay(datetime)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+        </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the GetDay function to extract the day of a month from the given datetime object. 
+     </p>
+</section>
+</section> 
+
+<!-- ======================================================== -->  
+ <section id="get-hour">
+   <title>GetHour</title>
+   <p>Returns the hour of a day from a DateTime object.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>GetHour(datetime)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+        </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the GetHour function to extract the hour of a day from the given datetime object. 
+     </p>
+</section>
+</section>
+
+<!-- ======================================================== -->  
+ <section id="get-milli-second">
+   <title>GetMilliSecond</title>
+   <p>Returns the millisecond of a second from a DateTime object.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>GetMilliSecond(datetime)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+        </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the GetMilliSecond function to extract the millsecond of a second from the given datetime object. 
+     </p>
+</section>
+</section>
+
+<!-- ======================================================== -->  
+ <section id="get-minute">
+   <title>GetMinute</title>
+   <p>Returns the minute of a hour from a DateTime object.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>GetMinute(datetime)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+        </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the GetMinute function to extract the minute of a hour from the given datetime object. 
+     </p>
+</section>
+</section>
+
+<!-- ======================================================== -->  
+ <section id="get-month">
+   <title>GetMonth</title>
+   <p>Returns the month of a year from a DateTime object.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>GetMonth(datetime)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+        </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the GetMonth function to extract the month of a year from the given datetime object. 
+     </p>
+</section>
+</section>
+
+<!-- ======================================================== -->  
+ <section id="get-second">
+   <title>GetSecond</title>
+   <p>Returns the second of a minute from a DateTime object.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>GetSecond(datetime)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+        </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the GetSecond function to extract the second of a minute from the given datetime object. 
+     </p>
+</section>
+</section>
+
+<!-- ======================================================== -->  
+ <section id="get-week">
+   <title>GetWeek</title>
+   <p>Returns the week of a week year from a DateTime object.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>GetWeek(datetime)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+        </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the GetWeek function to extract the week of a week year from the given datetime object.
+Note that week year may be different from year. 
+     </p>
+</section>
+</section>
+
+<!-- ======================================================== -->  
+ <section id="get-week-year">
+   <title>GetWeekYear</title>
+   <p>Returns the week year from a DateTime object.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>GetWeekYear(datetime)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+        </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the GetWeekYear function to extract the week year from the given datetime object.
+Note that week year may be different from year.
+     </p>
+</section>
+</section>
+
+<!-- ======================================================== -->  
+ <section id="get-year">
+   <title>GetYear</title>
+   <p>Returns the year from a DateTime object.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>GetYear(datetime)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+        </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the GetYear function to extract the year from the given datetime object. 
+     </p>
+</section>
+</section>
+
+<!-- ======================================================== -->  
+ <section id="hours-between">
+   <title>HoursBetween</title>
+   <p>Returns the number of hours between two DateTime objects.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>HoursBetween(datetime1, datetime2)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime1</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+        </tr> 
+        <tr>
+            <td>
+               <p>datetime2</p>
+            </td>
+            <td>
+               <p>Another datetime object.</p>
+            </td>
+        </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the HoursBetween function to get the number of hours between the two given datetime objects. 
+     </p>
+</section>
+</section>
+
+<!-- ======================================================== -->  
+ <section id="milli-seconds-between">
+   <title>MilliSecondsBetween</title>
+   <p>Returns the number of milliseconds between two DateTime objects.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>MilliSecondsBetween(datetime1, datetime2)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime1</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+        </tr> 
+        <tr>
+            <td>
+               <p>datetime2</p>
+            </td>
+            <td>
+               <p>Another datetime object.</p>
+            </td>
+        </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the MilliSecondsBetween function to get the number of millseconds between the two given datetime objects. 
+     </p>
+</section>
+</section> 
+
+<!-- ======================================================== -->  
+ <section id="minutes-between">
+   <title>MinutesBetween</title>
+   <p>Returns the number of minutes between two DateTime objects.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>MinutesBetween(datetime1, datetime2)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime1</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+        </tr> 
+        <tr>
+            <td>
+               <p>datetime2</p>
+            </td>
+            <td>
+               <p>Another datetime object.</p>
+            </td>
+        </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the MinutsBetween function to get the number of minutes between the two given datetime objects. 
+     </p>
+</section>
+</section> 
+
+<!-- ======================================================== -->  
+<section id="months-between">
+   <title>MonthsBetween</title>
+   <p>Returns the number of months between two DateTime objects.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>MonthsBetween(datetime1, datetime2)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime1</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+        </tr> 
+        <tr>
+            <td>
+               <p>datetime2</p>
+            </td>
+            <td>
+               <p>Another datetime object.</p>
+            </td>
+        </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the MonthsBetween function to get the number of months between the two given datetime objects. 
+     </p>
+</section>
+</section>
+
+<!-- ======================================================== -->  
+ <section id="seconds-between">
+   <title>SecondsBetween</title>
+   <p>Returns the number of seconds between two DateTime objects.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>SecondsBetween(datetime1, datetime2)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime1</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+        </tr> 
+        <tr>
+            <td>
+               <p>datetime2</p>
+            </td>
+            <td>
+               <p>Another datetime object.</p>
+            </td>
+        </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the SecondsBetween function to get the number of seconds between the two given datetime objects. 
+     </p>
+</section>
+</section>
+
+<!-- ======================================================== -->  
+ <section id="subtract-duration">
+   <title>SubtractDuration</title>
+   <p>Returns the result of a DateTime object minus a <a href="http://en.wikipedia.org/wiki/ISO_8601#Durations">Duration object</a>.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>SubtractDuration(datetime, duration)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+         </tr> 
+                <tr>
+            <td>
+               <p>duration</p>
+            </td>
+            <td>
+               <p>The duration string in <a href="http://en.wikipedia.org/wiki/ISO_8601#Durations">ISO 8601 format</a>.</p>
+            </td>
+         </tr> 
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the AddDuration function to created a new datetime object by add some duration to a given datetime object.
+      </p>
+</section>
+</section> 
+
+<!-- ======================================================== -->  
+ <section id="to-date">
+   <title>ToDate</title>
+   <p>Returns a DateTime object according to parameters.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>ToDate(milliseconds)</p>
+               <p>ToDate(iosstring)</p>
+               <p>ToDate(userstring, format)</p>
+               <p>ToDate(userstring, format, timezone)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>millseconds</p>
+            </td>
+            <td>
+               <p>The offset from 1970-01-01T00:00:00.000Z in terms of the number milliseconds (either positive or negative).</p>
+            </td>
+        </tr> 
+        <tr>
+            <td>
+               <p>isostring</p>
+            </td>
+            <td>
+               <p>The datetime string in the <a href="http://www.w3.org/TR/NOTE-datetime">ISO 8601 format</a>.</p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+               <p>userstring</p>
+            </td>
+            <td>
+               <p>The datetime string in the user defined format.</p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+               <p>format</p>
+            </td>
+            <td>
+               <p>The date time format pattern string (see <a href="http://docs.oracle.com/javase/6/docs/api/java/text/SimpleDateFormat.html">Java SimpleDateFormat class</a>).</p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+               <p>timezone</p>
+            </td>
+            <td>
+               <p>The timezone string. Either the UTC offset and the location based format can be used as a parameter, while internally the timezone will be converted to the UTC offset format.</p>
+               <p>Please see <a href="http://joda-time.sourceforge.net/timezones.html">the Joda-Time doc</a> for available timezone IDs.</p>
+            </td>
+        </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the ToDate function to generate a DateTime object. Note that if the timezone is not specified with the ISO datetime string or by the timezone parameter, the default timezone will be used.
+      </p>
+</section>
+</section>
+
+<!-- ======================================================== -->
+<section id="to-milli-seconds">
+    <title>ToMilliSeconds</title>
+    <p>
+        Returns the number of milliseconds elapsed since January 1, 1970, 00:00:00.000 GMT
+        for a DateTime object.
+    </p>
+
+    <section>
+        <title>Syntax</title>
+        <table>
+            <tr>
+                <td>
+                    <p>ToMilliSeconds(datetime)</p>
+                </td>
+            </tr>
+        </table>
+    </section>
+
+    <section>
+        <title>Terms</title>
+        <table>
+            <tr>
+                <td>
+                    <p>datetime</p>
+                </td>
+                <td>
+                    <p>A datetime object.</p>
+                </td>
+            </tr>
+        </table>
+    </section>
+
+    <section>
+        <title>Usage</title>
+        <p>
+            Use the ToMilliSeconds function to convert the DateTime to the number of
+            milliseconds that have passed since January 1, 1970 00:00:00.000 GMT.
+        </p>
+    </section>
+</section>
+
+<!-- ======================================================== -->
+<section id="to-string">
+    <title>ToString</title>
+    <p>
+        ToString converts the DateTime object to the ISO or the customized string.
+    </p>
+
+    <section>
+        <title>Syntax</title>
+        <table>
+            <tr>
+                <td>
+                    <p>ToString(datetime [, format string])</p>
+                </td>
+            </tr>
+        </table>
+    </section>
+
+    <section>
+        <title>Terms</title>
+        <table>
+            <tr>
+                <td>
+                    <p>datetime</p>
+                </td>
+                <td>
+                    <p>A datetime object.</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>format string</p>
+                </td>
+                <td>
+                    <p>The date time format pattern string (see <a href="http://docs.oracle.com/javase/6/docs/api/java/text/SimpleDateFormat.html">Java SimpleDateFormat class</a>).</p>
+                </td>
+            </tr>
+        </table>
+    </section>
+
+    <section>
+        <title>Usage</title>
+        <p>
+            Use the ToString function to convert the DateTime to the customized string.
+        </p>
+    </section>
+</section>
+
+<!-- ======================================================== -->
+<section id="to-unix-time">
+    <title>ToUnixTime</title>
+    <p>
+        Returns the Unix Time as long for a DateTime object. UnixTime is the
+        number of seconds elapsed since January 1, 1970, 00:00:00.000 GMT.
+    </p>
+
+    <section>
+        <title>Syntax</title>
+        <table>
+            <tr>
+                <td>
+                    <p>ToUnixTime(datetime)</p>
+                </td>
+            </tr>
+        </table>
+    </section>
+
+    <section>
+        <title>Terms</title>
+        <table>
+            <tr>
+                <td>
+                    <p>datetime</p>
+                </td>
+                <td>
+                    <p>A datetime object.</p>
+                </td>
+            </tr>
+        </table>
+    </section>
+
+    <section>
+        <title>Usage</title>
+        <p>
+            Use the ToUnixTime function to convert the DateTime to Unix Time.
+        </p>
+    </section>
+</section>
+
+<!-- ======================================================== -->  
+ <section id="weeks-between">
+   <title>WeeksBetween</title>
+   <p>Returns the number of weeks between two DateTime objects.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>WeeksBetween(datetime1, datetime2)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime1</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+        </tr> 
+        <tr>
+            <td>
+               <p>datetime2</p>
+            </td>
+            <td>
+               <p>Another datetime object.</p>
+            </td>
+        </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the WeeksBetween function to get the number of weeks between the two given datetime objects. 
+     </p>
+</section>
+</section>
+
+<!-- ======================================================== -->  
+ <section id="years-between">
+   <title>YearsBetween</title>
+   <p>Returns the number of years between two DateTime objects.</p>
+
+<section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>YearsBetween(datetime1, datetime2)</p>
+            </td>
+         </tr>
+   </table>
+ </section>
+   
+<section>
+   <title>Terms</title>
+   <table>
+       <tr>
+            <td>
+               <p>datetime1</p>
+            </td>
+            <td>
+               <p>A datetime object.</p>
+            </td>
+        </tr> 
+        <tr>
+            <td>
+               <p>datetime2</p>
+            </td>
+            <td>
+               <p>Another datetime object.</p>
+            </td>
+        </tr>
+   </table>
+</section>
+
+<section>
+     <title>Usage</title>
+     <p>
+Use the YearsBetween function to get the number of years between the two given datetime objects. 
+     </p>
+</section>
+</section>
+</section>
+<!-- End DateTime Functions -->
 
 <!-- ======================================================== -->
 <!-- ======================================================== -->
@@ -3338,7 +5298,7 @@ Output (results)
                <p>column</p>
             </td>
             <td>
-               <p>The tuple column whose values are being compared.</p>
+               <p>The tuple column whose values are being compared, note 0 denotes the first column.</p>
             </td>
          </tr> 
                 <tr>
@@ -3367,10 +5327,10 @@ In this example the top 10 occurrences are returned.
  <source>
 A = LOAD 'data' as (first: chararray, second: chararray);
 B = GROUP A BY (first, second);
-C = FOREACH B generate FLATTEN(group), COUNT(*) as count;
+C = FOREACH B generate FLATTEN(group), COUNT(A) as count;
 D = GROUP C BY first; // again group by first
 topResults = FOREACH D {
-    result = TOP(10, 2, C); // and retain top 10 occurrences of 'second' in first
+    result = TOP(10, 1, C); // and retain top 10 occurrences of 'second' in first
     GENERATE FLATTEN(result);
 }
 </source>

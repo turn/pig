@@ -30,11 +30,17 @@ import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
+import org.apache.pig.Expression;
 import org.apache.pig.LoadCaster;
 import org.apache.pig.LoadFunc;
+import org.apache.pig.LoadMetadata;
+import org.apache.pig.ResourceSchema;
+import org.apache.pig.ResourceStatistics;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigSplit;
 import org.apache.pig.backend.hadoop.executionengine.shims.HadoopShims;
+import org.apache.pig.data.SchemaTupleBackend;
 import org.apache.pig.data.Tuple;
+import org.apache.pig.impl.PigContext;
 import org.apache.pig.impl.plan.OperatorKey;
 
 /**
@@ -49,7 +55,7 @@ import org.apache.pig.impl.plan.OperatorKey;
  * 1) construct an object using the constructor
  * 2) Call getNext() in a loop till it returns null
  */
-public class ReadToEndLoader extends LoadFunc {
+public class ReadToEndLoader extends LoadFunc implements LoadMetadata {
 
     /**
      * the wrapped LoadFunc which will do the actual reading
@@ -58,7 +64,7 @@ public class ReadToEndLoader extends LoadFunc {
     
     /**
      * the Configuration object used to locate the input location - this will
-     * be used to call {@link LoadFunc#setLocation(String, Configuration)} on 
+     * be used to call {@link LoadFunc#setLocation(String, Job)} on
      * the wrappedLoadFunc
      */
     private Configuration conf;
@@ -99,6 +105,10 @@ public class ReadToEndLoader extends LoadFunc {
      */
     private InputFormat inputFormat = null;
     
+    private PigContext pigContext;
+    
+    private String udfContextSignature = null;
+
     /**
      * @param wrappedLoadFunc
      * @param conf
@@ -116,6 +126,26 @@ public class ReadToEndLoader extends LoadFunc {
         init();
     }
     
+    public ReadToEndLoader(LoadFunc wrappedLoadFunc, Configuration conf,
+            String inputLocation, int splitIndex, PigContext pigContext) throws IOException {
+        this.wrappedLoadFunc = wrappedLoadFunc;
+        this.inputLocation = inputLocation;
+        this.conf = conf;
+        this.curSplitIndex = splitIndex;
+        this.pigContext = pigContext;
+        init();
+    }
+    
+    public ReadToEndLoader(LoadFunc wrappedLoadFunc, Configuration conf,
+            String inputLocation, int splitIndex, String signature) throws IOException {
+        this.udfContextSignature = signature;
+        this.wrappedLoadFunc = wrappedLoadFunc;
+        this.inputLocation = inputLocation;
+        this.conf = conf;
+        this.curSplitIndex = splitIndex;
+        init();
+    }
+
     /**
      * This constructor takes an array of split indexes (toReadSplitIdxs) of the 
      * splits to be read.
@@ -139,11 +169,17 @@ public class ReadToEndLoader extends LoadFunc {
     
     @SuppressWarnings("unchecked")
     private void init() throws IOException {
+        if (conf != null && pigContext != null) {
+            SchemaTupleBackend.initialize(conf, pigContext, true);
+        }
+
         // make a copy so that if the underlying InputFormat writes to the
         // conf, we don't affect the caller's copy
         conf = new Configuration(conf);
+
         // let's initialize the wrappedLoadFunc 
         Job job = new Job(conf);
+        wrappedLoadFunc.setUDFContextSignature(this.udfContextSignature);
         wrappedLoadFunc.setLocation(inputLocation, 
                 job);
         // The above setLocation call could write to the conf within
@@ -254,9 +290,45 @@ public class ReadToEndLoader extends LoadFunc {
 
     @Override
     public void setLocation(String location, Job job) throws IOException {
-        //no-op
+        wrappedLoadFunc.setLocation(location, job);
     }
 
+    @Override
+    public ResourceSchema getSchema(String location, Job job) throws IOException {
+        if (wrappedLoadFunc instanceof LoadMetadata) {
+            return ((LoadMetadata) wrappedLoadFunc).getSchema(location, job);
+        } else {
+            return null;
+        }
+    }
 
-   
+    @Override
+    public ResourceStatistics getStatistics(String location, Job job) throws IOException {
+        if (wrappedLoadFunc instanceof LoadMetadata) {
+            return ((LoadMetadata) wrappedLoadFunc).getStatistics(location, job);
+        } else {
+            return null;
+        }
+    }
+
+    @Override
+    public String[] getPartitionKeys(String location, Job job) throws IOException {
+        if (wrappedLoadFunc instanceof LoadMetadata) {
+            return ((LoadMetadata) wrappedLoadFunc).getPartitionKeys(location, job);
+        } else {
+            return null;
+        }
+    }
+
+    @Override
+    public void setPartitionFilter(Expression partitionFilter) throws IOException {
+        if (wrappedLoadFunc instanceof LoadMetadata) {
+             ((LoadMetadata) wrappedLoadFunc).setPartitionFilter(partitionFilter);
+        }
+    }
+    
+    @Override
+    public void setUDFContextSignature(String signature) {
+        this.udfContextSignature = signature;
+    }
 }

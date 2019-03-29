@@ -17,6 +17,7 @@
  */
 package org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -87,14 +88,10 @@ public class POPartitionRearrange extends POLocalRearrange {
             "Internal error: missing key distribution file property.");
         }
 
-        boolean tmpFileCompression = Utils.tmpFileCompression(pigContext);
-        if (tmpFileCompression) {
-            PigMapReduce.sJobConfInternal.get().setBoolean("pig.tmpfilecompression", true);
-            try {
-                PigMapReduce.sJobConfInternal.get().set("pig.tmpfilecompression.codec", Utils.tmpFileCompressionCodec(pigContext));
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+        try {
+            Utils.setTmpFileCompressionOnConf(pigContext, PigMapReduce.sJobConfInternal.get());
+        } catch (IOException ie) {
+            throw new RuntimeException(ie);
         }
         try {
 
@@ -125,7 +122,7 @@ public class POPartitionRearrange extends POLocalRearrange {
      * format, i.e, (key,indexedTuple(value))
      */
     @Override
-    public Result getNext(Tuple t) throws ExecException {
+    public Result getNextTuple() throws ExecException {
 
         Result inp = null;
         Result res = null;
@@ -153,7 +150,7 @@ public class POPartitionRearrange extends POLocalRearrange {
             }
             List<Result> resLst = new ArrayList<Result>();
             for (ExpressionOperator op : leafOps){
-                res = op.getNext(getDummy(op.getResultType()), op.getResultType());
+                res = op.getNext(op.getResultType());
                 if(res.returnStatus!=POStatus.STATUS_OK) {
                     return new Result();
                 }

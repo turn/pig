@@ -60,11 +60,10 @@ public class TestNestedForeach {
 		pig.registerQuery("c = foreach b { c1 = foreach a generate a1; generate c1; }\n");
 
 		Iterator<Tuple> iter = pig.openIterator("c");
-		Tuple t = iter.next();
-		Assert.assertTrue(t.toString().equals("({(2),(3)})"));
+		String[] expected = new String[] {"({(2),(3)})", "({(7)})"};
 
-		t = iter.next();
-		Assert.assertTrue(t.toString().equals("({(7)})"));
+        Util.checkQueryOutputsAfterSortRecursive(iter, expected, org.apache.pig.newplan.logical.Util.translateSchema(pig.dumpSchema("c")));
+    
 	}
 
 	@Test
@@ -82,11 +81,10 @@ public class TestNestedForeach {
 		pig.registerQuery("c = foreach b { c1 = foreach a generate 2 * a1; generate c1; }\n");
 
 		Iterator<Tuple> iter = pig.openIterator("c");
-		Tuple t = iter.next();
-		Assert.assertTrue(t.toString().equals("({(4),(6)})"));
+		
+        String[] expected = new String[] {"({(4),(6)})", "({(14)})"};
 
-		t = iter.next();
-		Assert.assertTrue(t.toString().equals("({(14)})"));
+        Util.checkQueryOutputsAfterSortRecursive(iter, expected, org.apache.pig.newplan.logical.Util.translateSchema(pig.dumpSchema("c")));
 	}
 
 	@Test
@@ -104,11 +102,10 @@ public class TestNestedForeach {
 		pig.registerQuery("c = foreach b { c1 = foreach a generate UPPER(a1); generate c1; }\n");
 
 		Iterator<Tuple> iter = pig.openIterator("c");
-		Tuple t = iter.next();
-		Assert.assertTrue(t.toString().equals("({(HELLO),(WORLD)})"));
+		
+        String[] expected = new String[] {"({(HELLO),(WORLD)})", "({(PIG)})"};
 
-		t = iter.next();
-		Assert.assertTrue(t.toString().equals("({(PIG)})"));
+        Util.checkQueryOutputsAfterSortRecursive(iter, expected, org.apache.pig.newplan.logical.Util.translateSchema(pig.dumpSchema("c")));
 	}
 
 	@Test
@@ -126,11 +123,11 @@ public class TestNestedForeach {
 		pig.registerQuery("c = foreach b { c1 = foreach a generate FLATTEN(TOKENIZE(a1)); generate c1; }\n");
 
 		Iterator<Tuple> iter = pig.openIterator("c");
-		Tuple t = iter.next();
-		Assert.assertTrue(t.toString().equals("({(hello),(world),(pig),(hello),(pig)})"));
+		
+        String[] expected = new String[] {"({(hello),(world),(pig),(hello),(pig)})", 
+                "({(hadoop),(world)})"};
 
-		t = iter.next();
-		Assert.assertTrue(t.toString().equals("({(hadoop),(world)})"));
+        Util.checkQueryOutputsAfterSortRecursive(iter, expected, org.apache.pig.newplan.logical.Util.translateSchema(pig.dumpSchema("c")));
 	}
 
 	@Test
@@ -184,4 +181,26 @@ public class TestNestedForeach {
 		t = iter.next();
 		Assert.assertTrue(t.toString().equals("({(7)})"));
 	}
+	
+	// See PIG-2563
+	@Test
+    public void testNestedForeach() throws Exception {
+        String[] input = {
+                "1\t2\t3",
+                "2\t5\t2"
+        };
+
+        Util.createInputFile(cluster, "table_nf_project", input);
+
+        pig.registerQuery("A = load 'table_nf_project' as (a,b,c:chararray);");
+        pig.registerQuery("B = GROUP A BY a;");
+        pig.registerQuery("C = foreach B {tmp = A.a;generate A, tmp; };");
+        pig.registerQuery("D = foreach C generate A.(a,b) as v;");
+        Iterator<Tuple> iter = pig.openIterator("D");
+        Tuple t = iter.next();
+        Assert.assertTrue(t.toString().equals("({(1,2)})"));
+
+        t = iter.next();
+        Assert.assertTrue(t.toString().equals("({(2,5)})"));
+    }
 }

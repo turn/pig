@@ -18,10 +18,12 @@
 package org.apache.pig.newplan.logical.relational;
 
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Stack;
 
 import org.apache.pig.impl.logicalLayer.FrontendException;
+import org.apache.pig.impl.util.Pair;
 import org.apache.pig.newplan.Operator;
 import org.apache.pig.newplan.OperatorPlan;
 import org.apache.pig.newplan.PlanVisitor;
@@ -59,8 +61,19 @@ public class LOForEach extends LogicalRelationalOperator {
     @Override
     public LogicalSchema getSchema() throws FrontendException {
         List<Operator> ll = innerPlan.getSinks();
-        if (ll != null) {
-            schema = ((LogicalRelationalOperator)ll.get(0)).getSchema();
+        LogicalRelationalOperator generate = null;
+        // We can assume LOGenerate is the only sink of the inner plan, but
+        // only after DanglingNestedNodeRemover. LOForEach.getSchema will be
+        // run before DanglingNestedNodeRemover, so need to make sure we do
+        // get LOGenerate
+        for (Operator op : ll) {
+            if (op instanceof LOGenerate) {
+                generate = (LogicalRelationalOperator)op;
+                break;
+            }
+        }
+        if (generate != null) {
+            schema = generate.getSchema();
         }
         
         return schema;
@@ -74,8 +87,14 @@ public class LOForEach extends LogicalRelationalOperator {
         ((LogicalRelationalNodesVisitor)v).visit(this);
     }
     
-    public static List<LOInnerLoad> findReacheableInnerLoadFromBoundaryProject(ProjectExpression project) throws FrontendException {
+    // Find the LOInnerLoad of the inner plan corresponding to the project, and 
+    // also find whether there is a LOForEach in inner plan along the way
+    public static Pair<List<LOInnerLoad>, Boolean> findReacheableInnerLoadFromBoundaryProject(ProjectExpression project) throws FrontendException {
+        boolean needNewUid = false;
         LogicalRelationalOperator referred = project.findReferent();
+        // If it is nested foreach, generate new uid
+        if (referred instanceof LOForEach)
+            needNewUid = true;
         List<Operator> srcs = referred.getPlan().getSources();
         List<LOInnerLoad> innerLoads = new ArrayList<LOInnerLoad>();
         for (Operator src:srcs) {
@@ -85,7 +104,7 @@ public class LOForEach extends LogicalRelationalOperator {
             		continue;
             	}
             	
-                Stack<Operator> stack = new Stack<Operator>();
+            	Deque<Operator> stack = new LinkedList<Operator>();
                 List<Operator> succs = referred.getPlan().getSuccessors( src );
                 if( succs != null ) {
                 	for( Operator succ : succs ) {
@@ -110,7 +129,7 @@ public class LOForEach extends LogicalRelationalOperator {
                 }
             }
         }
-        return innerLoads;
+        return new Pair<List<LOInnerLoad>, Boolean>(innerLoads, needNewUid);
     }
     
     public LogicalSchema dumpNestedSchema(String alias, String nestedAlias) throws FrontendException {

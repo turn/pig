@@ -32,6 +32,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.RunningJob;
+import org.apache.hadoop.mapred.TIPStatus;
 import org.apache.hadoop.mapred.TaskReport;
 import org.apache.hadoop.mapred.jobcontrol.Job;
 import org.apache.hadoop.mapred.jobcontrol.JobControl;
@@ -39,6 +40,7 @@ import org.apache.pig.FuncSpec;
 import org.apache.pig.PigException;
 import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.PhysicalPlan;
+import org.apache.pig.backend.hadoop.executionengine.shims.HadoopShims;
 import org.apache.pig.impl.PigContext;
 import org.apache.pig.impl.plan.PlanException;
 import org.apache.pig.impl.plan.VisitorException;
@@ -138,10 +140,8 @@ public abstract class Launcher {
                         log);
                 backendException = getExceptionFromString(jobMessage);
             } catch (Exception e) {
-                //just get the first line in the message and log the rest
-                String firstLine = getFirstLineFromMessage(jobMessage);
                 int errCode = 2997;
-                String msg = "Unable to recreate exception from backend error: " + firstLine;
+                String msg = "Unable to recreate exception from backend error: " + jobMessage;
                 throw new ExecException(msg, errCode, PigException.BUG);
             } 
             throw backendException;
@@ -150,9 +150,11 @@ public abstract class Launcher {
             TaskReport[] mapRep = jobClient.getMapTaskReports(MRJobID);
             getErrorMessages(mapRep, "map", errNotDbg, pigContext);
             totalHadoopTimeSpent += computeTimeSpent(mapRep);
+            mapRep = null;
             TaskReport[] redRep = jobClient.getReduceTaskReports(MRJobID);
             getErrorMessages(redRep, "reduce", errNotDbg, pigContext);
-            totalHadoopTimeSpent += computeTimeSpent(mapRep);
+            totalHadoopTimeSpent += computeTimeSpent(redRep);
+            redRep = null;
         } catch (IOException e) {
             if(job.getState() == Job.SUCCESS) {
                 // if the job succeeded, let the user know that
@@ -164,9 +166,9 @@ public abstract class Launcher {
         }
     }
     
-    protected long computeTimeSpent(TaskReport[] mapReports) {
+    protected long computeTimeSpent(TaskReport[] taskReports) {
         long timeSpent = 0;
-        for (TaskReport r : mapReports) {
+        for (TaskReport r : taskReports) {
             timeSpent += (r.getFinishTime() - r.getStartTime());
         }
         return timeSpent;
@@ -180,12 +182,8 @@ public abstract class Launcher {
             ArrayList<Exception> exceptions = new ArrayList<Exception>();
             String exceptionCreateFailMsg = null;
             boolean jobFailed = false;
-            float successfulProgress = 1.0f;
             if (msgs.length > 0) {
-            	//if the progress reported is not 1.0f then the map or reduce job failed
-            	//this comparison is in place till Hadoop 0.20 provides methods to query
-            	//job status            	
-            	if(reports[i].getProgress() != successfulProgress) {
+                if (HadoopShims.isJobFailed(reports[i])) {
                     jobFailed = true;
             	}
                 Set<String> errorMessageSet = new HashSet<String>();
@@ -202,9 +200,7 @@ public abstract class Launcher {
                                 Exception e = getExceptionFromString(msgs[j]);
                                 exceptions.add(e);
                             } catch (Exception e1) {
-                                // keep track of the exception we were unable to re-create
-                                String firstLine = getFirstLineFromMessage(msgs[j]);                                
-                                exceptionCreateFailMsg = firstLine;
+                                exceptionCreateFailMsg = msgs[j];
                           
                             }
                         } else {
@@ -215,7 +211,7 @@ public abstract class Launcher {
                 }
             }
             //if there are no valid exception that could be created, report
-            if((exceptions.size() == 0) && (exceptionCreateFailMsg != null)){
+            if(jobFailed && (exceptions.size() == 0) && (exceptionCreateFailMsg != null)){
             		int errCode = 2997;
             		String msg = "Unable to recreate exception from backed error: "+exceptionCreateFailMsg;
             		throw new ExecException(msg, errCode, PigException.BUG);
@@ -566,22 +562,14 @@ public abstract class Launcher {
         items = fileDetails.split(":");
         //PigMapOnly.java
         String fileName = null;
-        int lineNumber = 0;
+        int lineNumber = -1;
         if(items.length > 0) {
             fileName = items[0];
-            lineNumber = Integer.parseInt(items[1]);
+            if (items.length > 1) {
+                lineNumber = Integer.parseInt(items[1]);
+            }
         }
         return new StackTraceElement(declaringClass, methodName, fileName, lineNumber);
     }
-    
-    protected String getFirstLineFromMessage(String message) {
-        String[] messages = message.split(newLine);
-        if(messages.length > 0) {
-            return messages[0];
-        } else {
-            return message;
-        }        
-    }
-
 }
 

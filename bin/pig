@@ -25,6 +25,11 @@
 #
 #     PIG_CLASSPATH Extra Java CLASSPATH entries.
 #
+#     PIG_USER_CLASSPATH_FIRST If set, add user provided classpath entries to
+#                              the top of classpath instead of appending them.
+#                              Default is unset, i.e. the classpath entries are
+#                              placed normally at the end of a pre-defined classpath.
+#
 #     HADOOP_HOME/HADOOP_PREFIX     Environment HADOOP_HOME/HADOOP_PREFIX(0.20.205)
 #
 #     HADOOP_CONF_DIR     Hadoop conf dir
@@ -36,8 +41,11 @@
 #
 #     PIG_CONF_DIR    Alternate conf dir. Default is ${PIG_HOME}/conf.
 #
+#     HBASE_HOME       Optionally, the HBase installation directory.
+#                      Defaults to ${PIG_HOME}/share/hbase
+#
 #     HBASE_CONF_DIR - Optionally, the HBase configuration to run against
-#                      when using HBaseStorage
+#                      when using HBaseStorage. Defaults to ${HBASE_HOME}/conf
 
 cygwin=false
 case "`uname`" in
@@ -46,11 +54,23 @@ esac
 debug=false
 
 remaining=()
+includeHCatalog="";
+addJarString=-Dpig.additional.jars.comma\=;
+additionalJars="";
 # filter command line parameter
 for f in "$@"; do
-     if [[ $f = "-secretDebugCmd" ]]; then
+     if [[ $f == "-secretDebugCmd" || $f == "-printCmdDebug" ]]; then
         debug=true
-     else
+      elif [[ $f == "-useHCatalog" ]]; then
+        # if need to use hcatalog, we need to add the hcatalog and hive jars
+        # to the classpath and also include the hive configuration xml file
+        # for pig to work correctly with hcatalog
+        # because of PIG-2532, including the jars in the classpath is 
+        # sufficient to ensure that they are registered as well
+        includeHCatalog=true;
+      elif [[ "$includeHCatalog" == "true" && $f == $addJarString* ]]; then
+        additionalJars=`echo $f | sed s/$addJarString//`
+      else
         remaining[${#remaining[@]}]="$f"
      fi
 done
@@ -64,7 +84,9 @@ script="$(basename -- "$this")"
 this="$bin/$script"
 
 # the root of the Pig installation
-export PIG_HOME=`dirname "$this"`/..
+if [ -z "$PIG_HOME" ]; then
+    export PIG_HOME=`dirname "$this"`/..
+fi
 
 if [ -z "$PIG_CONF_DIR" ]; then
     if [ -f ${PIG_HOME}/conf/pig.properties ]; then
@@ -105,12 +127,84 @@ fi
 # CLASSPATH initially contains $PIG_CONF_DIR
 CLASSPATH="${PIG_CONF_DIR}"
 CLASSPATH=${CLASSPATH}:$JAVA_HOME/lib/tools.jar
+if [ "$includeHCatalog" == "true" ]; then
+  # need to provide the hcatalog jar file path as well as
+  # the location of the hive jars on which hcatalog depends
+  hiveMetaStoreJar=hive-metastore-*.jar
+  thriftJar=libthrift-*.jar
+  hiveExecJar=hive-exec-*.jar
+  fbJar=libfb303-*.jar
+  jdoECJar=jdo*-api-*.jar
+  slfJar=slf4j-api-*.jar
+  hbaseHiveJar=hive-hbase-handler-*.jar
+  if [ "$HIVE_HOME" == "" ]; then
+    if [ -d "/usr/lib/hive" ]; then
+      HIVE_HOME=/usr/lib/hive
+    else
+      echo "Please initialize HIVE_HOME"
+      exit -1
+    fi
+  fi
 
-# add user-specified CLASSPATH
-if [ "$PIG_CLASSPATH" != "" ]; then
-    CLASSPATH=${CLASSPATH}:${PIG_CLASSPATH}
+  hiveMetaStoreVersion=`ls $HIVE_HOME/lib/$hiveMetaStoreJar`
+  thriftVersion=`ls $HIVE_HOME/lib/$thriftJar`
+  hiveExecVersion=`ls $HIVE_HOME/lib/$hiveExecJar`
+  fbJarVersion=`ls $HIVE_HOME/lib/$fbJar`
+  jdoECJarVersion=`ls $HIVE_HOME/lib/$jdoECJar`
+  slfJarVersion=`ls $HIVE_HOME/lib/$slfJar 2>/dev/null`
+  hbaseHiveVersion=`ls $HIVE_HOME/lib/$hbaseHiveJar`
+
+  # hcatalog jar name for 0.4 and earlier
+  hcatJarOld=hcatalog-*.jar
+  # hcatalog jar name for 0.5 and newer
+  hcatJar=*hcatalog-core-*.jar
+  hbaseHCatJar=*hbase-storage-handler-*.jar
+  pigHCatJar=*hcatalog-pig-adapter-*.jar
+  if [ "$HCAT_HOME" == "" ]; then
+    if [ -d "/usr/lib/hcatalog" ]; then
+      HCAT_HOME=/usr/lib/hcatalog
+    elif [ -d "/usr/lib/hive-hcatalog" ]; then
+      HCAT_HOME=/usr/lib/hive-hcatalog
+    else
+      echo "Please initialize HCAT_HOME"
+      exit -1
+    fi
+  fi
+  hcatJarPath=`ls $HCAT_HOME/share/hcatalog/$hcatJar`
+  # if hcat jar is not found may be we are on hcatalog 0.4 or older
+  if [ 'xx' == "x${hcatJarPath}x" ]; then
+    hcatJarPath=`ls $HCAT_HOME/share/hcatalog/$hcatJarOld | grep -v server`
+  fi
+
+  # if we are using an older hcatalog version then the jar is on a different path
+  if [ -d "$HCAT_HOME/share/hcatalog/storage-handlers/hbase/lib" ]; then
+    # in 0.5 and newer we need to add multiple jars to the class path
+    hbaseHCatJarPath="$HCAT_HOME/share/hcatalog/storage-handlers/hbase/lib/*"
+  else
+    hbaseHCatJarPath=`ls $HCAT_HOME/lib/$hbaseHCatJar 2>/dev/null`
+  fi
+  
+  # get the pig storage handler jar
+  pigHCatJarPath=`ls $HCAT_HOME/share/hcatalog/${pigHCatJar}`
+
+  HCAT_CLASSPATHS=$hiveMetaStoreVersion:$thriftVersion:$hiveExecVersion:$fbJarVersion:$jdoECJarVersion:$slfJarVersion:$hbaseHiveVersion:$hcatJarPath:$hbaseHCatJarPath:$pigHCatJarPath
+  ADDITIONAL_CLASSPATHS=file://$hiveMetaStoreVersion,file://$thriftVersion,file://$hiveExecVersion,file://$fbJarVersion,file://$jdoECJarVersion,file://$slfJarVersion,file://$hbaseHiveVersion,file://$hcatJarPath,file://$hbaseHCatJarPath,file://$pigHCatJarPath
+  if [ "$additionalJars" != "" ]; then
+    ADDITIONAL_CLASSPATHS=$ADDITIONAL_CLASSPATHS:$additionalJars
+  fi
+  CLASSPATH=${CLASSPATH}:$HCAT_CLASSPATHS:$HIVE_HOME/conf
 fi
- 
+
+# Add user-specified CLASSPATH entries via PIG_CLASSPATH
+# If PIG_USER_CLASSPATH_FIRST is set, prepend the entries
+if [ "$PIG_CLASSPATH" != "" ]; then
+  if [ "$PIG_USER_CLASSPATH_FIRST" == "" ]; then
+    CLASSPATH=${CLASSPATH}:${PIG_CLASSPATH}
+  else
+    CLASSPATH=${PIG_CLASSPATH}:${CLASSPATH}
+  fi
+fi
+
 # add HADOOP_CONF_DIR
 if [ "$HADOOP_CONF_DIR" != "" ]; then
     CLASSPATH=${CLASSPATH}:${HADOOP_CONF_DIR}
@@ -132,6 +226,15 @@ if [ -z "$JYTHON_JAR" ]; then
     JYTHON_JAR=`echo $PIG_HOME/build/ivy/lib/Pig/jython*.jar`
     if [ -n "$JYTHON_JAR" ]; then
         CLASSPATH=${CLASSPATH}:$JYTHON_JAR
+    fi
+fi
+
+JRUBY_JAR=`echo ${PIG_HOME}/lib/jruby-complete-*.jar`
+
+if [ -z "$JRUBY_JAR" ]; then
+    JRUBY_JAR=`echo $PIG_HOME/build/ivy/lib/Pig/jruby-complete-*.jar`
+    if [ -n "$JRUBY_JAR" ]; then
+        CLASSPATH=${CLASSPATH}:$JRUBY_JAR
     fi
 fi
 
@@ -182,8 +285,17 @@ if [ -z "$HADOOP_BIN" ]; then
     fi
 fi
 
-# if using HBase, likely want to include HBase config
-HBASE_CONF_DIR=${HBASE_CONF_DIR:-/etc/hbase}
+# if using HBase, likely want to include HBase jars and config
+HBH=${HBASE_HOME:-"${PIG_HOME}/share/hbase"}
+if [ -d "${HBH}" ]; then
+    for f in ${HBH}/hbase-*.jar; do
+        CLASSPATH=${CLASSPATH}:$f
+    done
+    for f in ${HBH}/lib/*.jar; do
+        CLASSPATH=${CLASSPATH}:$f
+    done
+    HBASE_CONF_DIR=${HBASE_CONF_DIR:-"${HBH}/conf"}
+fi
 if [ -n "$HBASE_CONF_DIR" ] && [ -d "$HBASE_CONF_DIR" ]; then
     CLASSPATH=$HBASE_CONF_DIR:$CLASSPATH
 fi
@@ -196,14 +308,6 @@ fi
 ZKH=${ZOOKEEPER_HOME:-"${PIG_HOME}/share/zookeeper"}
 if [ -d "$ZKH" ] ; then
     for f in ${ZKH}/zookeeper-*.jar; do
-        CLASSPATH=${CLASSPATH}:$f
-    done
-fi
-
-# locate HBase
-HBH=${HBASE_HOME:-"${PIG_HOME}/share/hbase"}
-if [ -d "$HBH" ]; then
-    for f in ${HBH}/hbase-*.jar; do
         CLASSPATH=${CLASSPATH}:$f
     done
 fi
@@ -229,6 +333,14 @@ unset IFS
 PIG_OPTS="$PIG_OPTS -Dpig.log.dir=$PIG_LOG_DIR"
 PIG_OPTS="$PIG_OPTS -Dpig.log.file=$PIG_LOGFILE"
 PIG_OPTS="$PIG_OPTS -Dpig.home.dir=$PIG_HOME"
+if [ "$includeHCatalog" == "true" ]; then
+  addJars=`echo $PIG_OPTS | awk '{ for (i=1; i<=NF; i++) print $i; }' | grep "\-Dpig.additional.jars.comma=" | sed s/-Dpig.additional.jars.comma=//`
+  if [ "$addJars" != "" ]; then
+    ADDITIONAL_CLASSPATHS=$addJars:$ADDITIONAL_CLASSPATHS
+    PIG_OPTS=`echo $PIG_OPTS | sed 's/-Dpig.additional.jars.comma=[^ ]*//'`
+  fi
+  PIG_OPTS="$PIG_OPTS -Dpig.additional.jars.comma=$ADDITIONAL_CLASSPATHS"
+fi
 
 # run it
 if [ -n "$HADOOP_BIN" ]; then
@@ -256,22 +368,17 @@ if [ -n "$HADOOP_BIN" ]; then
 
     export HADOOP_CLASSPATH=$CLASSPATH:$HADOOP_CLASSPATH
     export HADOOP_OPTS="$JAVA_HEAP_MAX $PIG_OPTS $HADOOP_OPTS"
-    COMMAND_LINE="$HADOOP_BIN jar $PIG_JAR ${remaining[@]}"
     if [ "$debug" == "true" ]; then
         echo "dry run:"
         echo "HADOOP_CLASSPATH: $HADOOP_CLASSPATH"
         echo "HADOOP_OPTS: $HADOOP_OPTS"
-        echo "$COMMAND_LINE"
+        echo "$HADOOP_BIN" jar "$PIG_JAR" "${remaining[@]}"
         echo
     else
-        exec $COMMAND_LINE
+        exec "$HADOOP_BIN" jar "$PIG_JAR" "${remaining[@]}"
     fi
 else
     # fall back to use fat pig.jar
-    if [ "$debug" == "true" ]; then
-        echo "Cannot find local hadoop installation, using bundled hadoop 20.2"
-    fi
-
     if [ -f $PIG_HOME/pig.jar ]; then
         PIG_JAR=$PIG_HOME/pig.jar
     else
@@ -285,14 +392,17 @@ else
         exit 1
     fi
 
+    if [ "$debug" == "true" ]; then
+        echo "Cannot find local hadoop installation, using bundled `java -cp $PIG_JAR org.apache.hadoop.util.VersionInfo | head -1`"
+    fi
+
     CLASS=org.apache.pig.Main
-    COMMAND_LINE="$JAVA $JAVA_HEAP_MAX $PIG_OPTS -classpath $CLASSPATH $CLASS ${remaining[@]}"
     if [ "$debug" == "true" ]; then
         echo "dry run:"
-        echo "$COMMAND_LINE"
+        echo "$JAVA" $JAVA_HEAP_MAX $PIG_OPTS -classpath "$CLASSPATH" $CLASS "${remaining[@]}"
         echo
     else
-        exec $COMMAND_LINE
+        exec "$JAVA" $JAVA_HEAP_MAX $PIG_OPTS -classpath "$CLASSPATH" $CLASS "${remaining[@]}"
     fi
 fi
 shopt -u nullglob

@@ -23,18 +23,18 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.pig.backend.executionengine.ExecException;
-import org.apache.pig.data.BagFactory;
-import org.apache.pig.data.DataBag;
-import org.apache.pig.data.DataType;
-import org.apache.pig.data.Tuple;
-import org.apache.pig.data.SingleTupleBag;
-import org.apache.pig.data.TupleFactory;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.POStatus;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.Result;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.expressionOperators.ExpressionOperator;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.PhyPlanVisitor;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.PhysicalPlan;
+import org.apache.pig.data.BagFactory;
+import org.apache.pig.data.DataBag;
+import org.apache.pig.data.DataType;
+import org.apache.pig.data.SingleTupleBag;
+import org.apache.pig.data.Tuple;
+import org.apache.pig.data.TupleFactory;
 import org.apache.pig.impl.plan.OperatorKey;
 import org.apache.pig.impl.plan.VisitorException;
 
@@ -118,7 +118,7 @@ public class POPreCombinerLocalRearrange extends PhysicalOperator {
      * format, i.e, (key,indexedTuple(value))
      */
     @Override
-    public Result getNext(Tuple t) throws ExecException {
+    public Result getNextTuple() throws ExecException {
 
         Result inp = null;
         Result res = ERR_RESULT;
@@ -146,9 +146,12 @@ public class POPreCombinerLocalRearrange extends PhysicalOperator {
                 case DataType.FLOAT:
                 case DataType.INTEGER:
                 case DataType.LONG:
+                case DataType.BIGINTEGER:
+                case DataType.BIGDECIMAL:
+                case DataType.DATETIME:
                 case DataType.MAP:
                 case DataType.TUPLE:
-                    res = op.getNext(getDummy(op.getResultType()), op.getResultType());
+                    res = op.getNext(op.getResultType());
                     break;
                 default:
                     log.error("Invalid result type: "

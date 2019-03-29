@@ -25,8 +25,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.commons.collections.IteratorUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.mapred.JobClient;
 import org.apache.pig.PigException;
 import org.apache.pig.PigRunner.ReturnCode;
 import org.apache.pig.classification.InterfaceAudience;
@@ -57,6 +59,7 @@ public abstract class PigStats {
     
     private String errorMessage;
     private int errorCode = -1;
+    private Throwable errorThrowable = null;
     
     public static PigStats get() {
         if (tps.get() == null) tps.set(new SimplePigStats());
@@ -93,6 +96,15 @@ public abstract class PigStats {
         return errorCode;
     }
     
+    /**
+     * Returns the error code of {@link PigException}
+     */
+    public Throwable getErrorThrowable() {
+        return errorThrowable;
+    }
+
+    public abstract JobClient getJobClient();
+
     public abstract boolean isEmbedded();
     
     public abstract boolean isSuccessful();
@@ -197,6 +209,11 @@ public abstract class PigStats {
     void setErrorCode(int errorCode) {
         this.errorCode = errorCode;
     } 
+    
+    void setErrorThrowable(Throwable t) {
+        this.errorThrowable = t;
+    }
+
     /**
      * JobGraph is an {@link OperatorPlan} whose members are {@link JobStats}
      */
@@ -213,6 +230,17 @@ public abstract class PigStats {
             return jp.toString();
         }
         
+        /**
+         * Returns a List representation of the Job graph. Returned list is an
+         * ArrayList
+         * 
+         * @return List<JobStats>
+         */
+        @SuppressWarnings("unchecked")
+        public List<JobStats> getJobList() {
+            return IteratorUtils.toList(iterator());
+        }
+
         public Iterator<JobStats> iterator() {
             return new Iterator<JobStats>() {
                 private Iterator<Operator> iter = getOperators();                
@@ -243,7 +271,7 @@ public abstract class PigStats {
             return false;
         }
         
-        List<JobStats> getSuccessfulJobs() {
+        public List<JobStats> getSuccessfulJobs() {
             ArrayList<JobStats> lst = new ArrayList<JobStats>();
             Iterator<JobStats> iter = iterator();
             while (iter.hasNext()) {
@@ -256,7 +284,7 @@ public abstract class PigStats {
             return lst;
         }
         
-        List<JobStats> getFailedJobs() {
+        public List<JobStats> getFailedJobs() {
             ArrayList<JobStats> lst = new ArrayList<JobStats>();
             Iterator<JobStats> iter = iterator();
             while (iter.hasNext()) {

@@ -120,6 +120,11 @@ sub generateData
             'rows' => 10000,
             'outfile' => "singlefile/studenttab10k",
         }, {
+            'name' => "studenttab20m",
+            'filetype' => "studenttab",
+            'rows' => 20000000,
+            'outfile' => "singlefile/studenttab20m",
+        }, {
             'name' => "votertab10k",
             'filetype' => "votertab",
             'rows' => 10000,
@@ -165,6 +170,11 @@ sub generateData
             'rows' => 1,
             'outfile' => "singlefile/fileexists",
         }, {
+            'name' => "nameMap",
+            'filetype' => "studenttab",
+            'rows' => 1,
+            'hdfs' => "nameMap/part-00000",
+         },{
             'name' => "unicode100",
             'filetype' => "unicode",
             'rows' => 100,
@@ -189,11 +199,31 @@ sub generateData
             'filetype' => "voternulltab",
             'rows' => 10000,
             'outfile' => "singlefile/voternulltab10k",
-        },
+        }, {
+            'name' => "allscalar10k",
+            'filetype' => "allscalar",
+            'rows' => 10000,
+            'outfile' => "singlefile/allscalar10k",
+        }, {
+            'name' => "numbers.txt",
+            'filetype' => "numbers",
+            'rows' => 5000,
+            'outfile' => "types/numbers.txt",
+        }, {
+            'name' => "biggish",
+            'filetype' => "biggish",
+            'rows' => 1000000,
+            'outfile' => "singlefile/biggish",
+        }, {
+            'name' => "prerank",
+            'filetype' => "ranking",
+            'rows' => 30,
+            'outfile' => "singlefile/prerank",
+        }
     );
 
 	# Create the target directories
-    for my $dir ("singlefile", "dir", "glob/star/somegood",
+    for my $dir ("singlefile", "dir", "types", "glob/star/somegood",
             "glob/star/moregood", "glob/star/bad") {
         my @cmd = ("mkdir", "-p", "$cfg->{'inpathbase'}/$dir");
 	    $self->runCmd($log, \@cmd);

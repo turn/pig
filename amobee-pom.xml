@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<properties>
+		<ant.cmd>ant</ant.cmd>
+		<skipTests>True</skipTests>
+	</properties>
+	<groupId>org.apache.pig</groupId>
+	<artifactId>pig</artifactId>
+	<version>0.12.0-cdh5.16.1-turn-0.1</version>
+	<packaging>pom</packaging>
+	<repositories>
+		<repository>
+			<id>turn</id>
+			<url>http://maven.turn.com/content/repositories/turn</url>
+		</repository>
+	</repositories>
+	<parent>
+		<groupId>com.turn</groupId>
+		<artifactId>parent</artifactId>
+		<version>1.0.0</version>
+	</parent>
+	<build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+	        <version>1.8</version>
+            <executions>
+				<execution>
+	            <id>clean</id>			
+                <configuration>
+                  <target>
+					<exec executable="${ant.cmd}" dir="${basedir}" failonerror="true">					  
+                      <arg value="clean"/>
+                    </exec>
+                  </target>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <phase>clean</phase>
+              </execution>
+              <execution>
+                <id>resources</id>
+                <configuration>
+                  <target>
+                    <exec executable="${ant.cmd}" dir="${basedir}" failonerror="true">
+                      <arg value="turnver"/>
+					  <arg value="-Dturnver=${project.version}"/>
+                    </exec>
+                  </target>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <phase>process-resources</phase>
+              </execution>
+              <execution>
+                <id>compile</id>
+                <configuration>
+                  <target>
+                    <exec executable="${ant.cmd}" dir="${basedir}" failonerror="true">
+                      <arg value="jar"/>
+                    </exec>
+                  </target>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <phase>compile</phase>
+              </execution>
+              <execution>
+                <id>test</id>
+                <configuration>
+                  <target unless="${skipTests}">
+                    <exec executable="${ant.cmd}" dir="${basedir}" failonerror="true">
+                      <arg value="test"/>
+                    </exec>
+                  </target>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <phase>test</phase>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-install-plugin</artifactId>
+			<executions>			
+            	<execution>
+              	  <id>install</id>
+              		<configuration>
+	  					<file>build/${project.artifactId}-${project.version}.jar</file>
+						<groupId>${project.groupId}</groupId>
+						<artifactId>${project.artifactId}</artifactId>
+						<version>${project.version}</version>
+						<pomFile>amobee-pig.pom</pomFile>
+						<packaging>jar</packaging>
+              	  	</configuration>
+                  <goals>
+                    <goal>install-file</goal>
+                  </goals>
+                  <phase>install</phase>
+                </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-deploy-plugin</artifactId>
+			<executions>			
+            	<execution>
+              	  <id>deploy</id>
+              		<configuration>
+	  					<file>build/${project.artifactId}-${project.version}.jar</file>
+						<repositoryId>turn</repositoryId>
+						<url>http://maven.turn.com/content/repositories/turn</url>
+						<groupId>${project.groupId}</groupId>
+						<artifactId>${project.artifactId}</artifactId>
+						<version>${project.version}</version>
+						<pomFile>amobee-pig.pom</pomFile>
+						<packaging>jar</packaging>
+              	  	</configuration>
+              <goals>
+                <goal>deploy-file</goal>
+              </goals>
+              <phase>deploy</phase>
+            </execution>
+          </executions>
+			
+		  </plugin>
+        </plugins>
+	</build>
+</project>

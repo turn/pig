@@ -23,29 +23,27 @@ import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.io.WritableComparator;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.pig.PigException;
 import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.impl.io.NullableTuple;
 import org.apache.pig.impl.util.ObjectSerializer;
-import org.apache.pig.impl.util.TupleFormat;
 
 /**
  * A default implementation of Tuple. This class will be created by the DefaultTupleFactory.
  */
-public class DefaultTuple implements Tuple {
+public class DefaultTuple extends AbstractTuple {
 
     protected boolean isNull = false;
     private static final long serialVersionUID = 2L;
@@ -63,7 +61,7 @@ public class DefaultTuple implements Tuple {
     /**
      * Construct a tuple with a known number of fields. Package level so that callers cannot directly invoke it.
      * <br>Resulting tuple is filled pre-filled with null elements. Time complexity: O(N), after allocation
-     * 
+     *
      * @param size
      *            Number of fields to allocate in the tuple.
      */
@@ -86,7 +84,7 @@ public class DefaultTuple implements Tuple {
     /**
      * Construct a tuple from an existing list of objects. Package level so that callers cannot directly invoke it.
      * <br>Time complexity: O(1)
-     * 
+     *
      * @param c
      *            List of objects to turn into a tuple. This list will be kept as part of the tuple.
      * @param junk
@@ -97,77 +95,42 @@ public class DefaultTuple implements Tuple {
     }
 
     /**
-     * Make this tuple reference the contents of another. This method does not copy the underlying data. It maintains
-     * references to the data from the original tuple (and possibly even to the data structure holding the data).
-     * 
-     * @param t
-     *            Tuple to reference.
-     */
-    public void reference(Tuple t) {
-        mFields = t.getAll();
-    }
-
-    /**
      * Find the size of the tuple. Used to be called arity().
-     * 
+     *
      * @return number of fields in the tuple.
      */
+    @Override
     public int size() {
         return mFields.size();
     }
 
     /**
-     * Find out if a given field is null.
-     * 
-     * @param fieldNum
-     *            Number of field to check for null.
-     * @return true if the field is null, false otherwise.
-     * @throws ExecException
-     *             if the field number given is greater than or equal to the number of fields in the tuple.
-     */
-    public boolean isNull(int fieldNum) throws ExecException {
-        return (mFields.get(fieldNum) == null);
-    }
-
-    /**
-     * Find the type of a given field.
-     * 
-     * @param fieldNum
-     *            Number of field to get the type for.
-     * @return type, encoded as a byte value. The values are taken from the class DataType. If the field is null, then
-     *         DataType.UNKNOWN will be returned.
-     * @throws ExecException
-     *             if the field number is greater than or equal to the number of fields in the tuple.
-     */
-    public byte getType(int fieldNum) throws ExecException {
-        return DataType.findType(mFields.get(fieldNum));
-    }
-
-    /**
      * Get the value in a given field.
-     * 
+     *
      * @param fieldNum
      *            Number of the field to get the value for.
      * @return value, as an Object.
      * @throws ExecException
      *             if the field number is greater than or equal to the number of fields in the tuple.
      */
+    @Override
     public Object get(int fieldNum) throws ExecException {
         return mFields.get(fieldNum);
     }
 
     /**
      * Get all of the fields in the tuple as a list.
-     * 
+     *
      * @return List&lt;Object&gt; containing the fields of the tuple in order.
      */
+    @Override
     public List<Object> getAll() {
         return mFields;
     }
 
     /**
      * Set the value in a given field.
-     * 
+     *
      * @param fieldNum
      *            Number of the field to set the value for.
      * @param val
@@ -175,6 +138,7 @@ public class DefaultTuple implements Tuple {
      * @throws ExecException
      *             if the field number is greater than or equal to the number of fields in the tuple.
      */
+    @Override
     public void set(int fieldNum, Object val) throws ExecException {
         mFields.set(fieldNum, val);
     }
@@ -183,10 +147,11 @@ public class DefaultTuple implements Tuple {
      * Append a field to a tuple. This method is not efficient as it may force copying of existing data in order to grow
      * the data structure. Whenever possible you should construct your Tuple with the newTuple(int) method and then fill
      * in the values with set(), rather than construct it with newTuple() and append values.
-     * 
+     *
      * @param val
      *            Object to append to the tuple.
      */
+    @Override
     public void append(Object val) {
         mFields.add(val);
     }
@@ -194,9 +159,10 @@ public class DefaultTuple implements Tuple {
     /**
      * Determine the size of tuple in memory. This is used by data bags to determine their memory size. This need not be
      * exact, but it should be a decent estimation.
-     * 
+     *
      * @return estimated memory size.
      */
+    @Override
     public long getMemorySize() {
         Iterator<Object> i = mFields.iterator();
         // fixed overhead
@@ -218,32 +184,7 @@ public class DefaultTuple implements Tuple {
         return sum;
     }
 
-
-    /**
-     * Write a tuple of atomic values into a string. All values in the tuple must be atomic (no bags, tuples, or maps).
-     * 
-     * @param delim
-     *            Delimiter to use in the string.
-     * @return A string containing the tuple.
-     * @throws ExecException
-     *             if a non-atomic value is found.
-     */
-    public String toDelimitedString(String delim) throws ExecException {
-        StringBuilder buf = new StringBuilder();
-        for (Iterator<Object> it = mFields.iterator(); it.hasNext();) {
-            Object field = it.next();
-            buf.append(field == null ? "" : field.toString());
-            if (it.hasNext())
-                buf.append(delim);
-        }
-        return buf.toString();
-    }
-
     @Override
-    public String toString() {
-        return TupleFormat.format(this);
-    }
-
     public int compareTo(Object other) {
         if (other instanceof Tuple) {
             Tuple t = (Tuple) other;
@@ -384,6 +325,49 @@ public class DefaultTuple implements Tuple {
                             double dv2 = bb2.getDouble();
                             rc = Double.compare(dv1, dv2);
                             break;
+                        case DataType.BIGINTEGER: {
+                            if (bb1.get() != DataType.BYTEARRAY || bb2.get() != DataType.BYTEARRAY) {
+                                throw new RuntimeException("Issue in comparing raw bytes for DefaultTuple! BIGINTEGER was not serialized with BYTEARRAY");
+                            }
+
+                            int basz1 = bb1.getInt();
+                            int basz2 = bb2.getInt();
+                            byte[] ba1 = new byte[basz1];
+                            byte[] ba2 = new byte[basz2];
+                            bb1.get(ba1);
+                            bb2.get(ba2);
+                            rc = new BigInteger(ba1).compareTo(new BigInteger(ba2));
+                            break;
+                        }
+                        case DataType.BIGDECIMAL: {
+                            byte catype1 = bb1.get();
+                            byte catype2 = bb2.get();
+                            int casz1 = (catype1 == DataType.CHARARRAY) ? bb1.getShort() : bb1.getInt();
+                            int casz2 = (catype2 == DataType.CHARARRAY) ? bb2.getShort() : bb2.getInt();
+                            byte[] ca1 = new byte[casz1];
+                            byte[] ca2 = new byte[casz2];
+                            bb1.get(ca1);
+                            bb2.get(ca2);
+                            String str1 = null,
+                            str2 = null;
+                            try {
+                                str1 = new String(ca1, DataReaderWriter.UTF8);
+                                str2 = new String(ca2, DataReaderWriter.UTF8);
+                            } catch (UnsupportedEncodingException uee) {
+                                mLog.warn("Unsupported string encoding", uee);
+                                uee.printStackTrace();
+                            }
+                            if (str1 != null && str2 != null)
+                                rc = new BigDecimal(str1).compareTo(new BigDecimal(str2));
+                            break;
+                        }
+                        case DataType.DATETIME:
+                            long dtv1 = bb1.getLong();
+                            bb1.position(bb1.position() + 2); // move cursor forward without read the timezone bytes
+                            long dtv2 = bb2.getLong();
+                            bb2.position(bb2.position() + 2);
+                            rc = (dtv1 < dtv2 ? -1 : (dtv1 == dtv2 ? 0 : 1));
+                            break;
                         case DataType.BYTEARRAY:
                             int basz1 = bb1.getInt();
                             int basz2 = bb2.getInt();
@@ -506,13 +490,8 @@ public class DefaultTuple implements Tuple {
     }
 
     @Override
-    public boolean equals(Object other) {
-        return (compareTo(other) == 0);
-    }
-
-    @Override
     public int hashCode() {
-        int hash = 1;
+        int hash = 17;
         for (Iterator<Object> it = mFields.iterator(); it.hasNext();) {
             Object o = it.next();
             if (o != null) {
@@ -522,6 +501,7 @@ public class DefaultTuple implements Tuple {
         return hash;
     }
 
+    @Override
     public void write(DataOutput out) throws IOException {
         out.writeByte(DataType.TUPLE);
         int sz = size();
@@ -531,6 +511,7 @@ public class DefaultTuple implements Tuple {
         }
     }
 
+    @Override
     public void readFields(DataInput in) throws IOException {
         // Clear our fields, in case we're being reused.
         mFields.clear();
@@ -553,21 +534,6 @@ public class DefaultTuple implements Tuple {
         }
     }
 
-    /**
-     * @return true if this Tuple is null
-     */
-    public boolean isNull() {
-        return isNull;
-    }
-
-    /**
-     * @param isNull
-     *            boolean indicating whether this tuple is null
-     */
-    public void setNull(boolean isNull) {
-        this.isNull = isNull;
-    }
-    
     public static Class<? extends TupleRawComparator> getComparatorClass() {
         return DefaultTupleRawComparator.class;
     }

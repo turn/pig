@@ -81,6 +81,9 @@ public class PigSplit extends InputSplit implements Writable, Configurable {
     // index
     private int splitIndex;
     
+    // index of current splits being process
+    private int currentIdx;
+    
     // the flag indicates this is a multi-input join (i.e. join)
     // so that custom Hadoop counters will be created in the 
     // back-end to track the number of records for each input.
@@ -122,6 +125,7 @@ public class PigSplit extends InputSplit implements Writable, Configurable {
         this.inputIndex = inputIndex;
         this.targetOps = new ArrayList<OperatorKey>(targetOps);
         this.splitIndex = splitIndex;
+        this.currentIdx = 0;
     }
     
     public List<OperatorKey> getTargetOps() {
@@ -135,7 +139,7 @@ public class PigSplit extends InputSplit implements Writable, Configurable {
      * @return the wrappedSplit
      */
     public InputSplit getWrappedSplit() {
-        return wrappedSplits[0];
+        return wrappedSplits[currentIdx];
     }
     
     /**
@@ -247,6 +251,11 @@ public class PigSplit extends InputSplit implements Writable, Configurable {
         SerializationFactory sf = new SerializationFactory(conf);
         Serializer s = 
             sf.getSerializer(wrappedSplits[0].getClass());
+         
+        //Checks if Serializer is NULL or not before calling open() method on it.         
+        if (s == null) {
+            	throw new IllegalArgumentException("Could not find Serializer for class "+wrappedSplits[0].getClass()+". InputSplits must implement Writable.");
+        }        
         s.open((OutputStream) os);
         for (int i = 0; i < wrappedSplits.length; i++)
         {
@@ -280,9 +289,6 @@ public class PigSplit extends InputSplit implements Writable, Configurable {
         }
     }
 
-    // package level access because we don't want LoadFunc implementations
-    // to get this information - this is to be used only from
-    // MergeJoinIndexer
     public int getSplitIndex() {
         return splitIndex;
     }
@@ -389,5 +395,9 @@ public class PigSplit extends InputSplit implements Writable, Configurable {
 
     public boolean disableCounter() {
         return disableCounter;
+    }
+    
+    public void setCurrentIdx(int idx) {
+        this.currentIdx = idx;
     }
 }

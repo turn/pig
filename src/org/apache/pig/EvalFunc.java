@@ -21,8 +21,9 @@ package org.apache.pig;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.Deque;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Stack;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -88,7 +89,16 @@ public abstract class EvalFunc<T>  {
      * Return type of this instance of EvalFunc.
      */
     protected Type returnType;
-    
+
+    /**
+     * EvalFunc's schema type.
+     * @see {@link EvalFunc#getSchemaType()}
+     */
+    public static enum SchemaType {
+        NORMAL, //default field type
+        VARARG //if the last field of the (udf) schema is of type vararg
+    };
+ 
     public EvalFunc(){
         
         //Figure out what the return type is by following the object hierarchy upto the EvalFunc
@@ -96,7 +106,7 @@ public abstract class EvalFunc<T>  {
         Class<?> superClass = getClass();
         Type superType = getClass();
         
-        Stack<Type> geneticsStack = new Stack<Type>();
+        Deque<Type> geneticsStack = new LinkedList<Type>();
         
         // Go up the hierachy of the class up to the EvalFunc
         while (!superClass.isAssignableFrom(EvalFunc.class))
@@ -145,7 +155,7 @@ public abstract class EvalFunc<T>  {
                 throw new RuntimeException("Initial " + errMsg);
             if (getReturnTypeFromSpec(new FuncSpec(a.getIntermed())) != Tuple.class)
                     throw new RuntimeException("Intermediate " + errMsg);
-            if (getReturnTypeFromSpec(new FuncSpec(a.getFinal())) != returnType)
+            if (!getReturnTypeFromSpec(new FuncSpec(a.getFinal())).equals(returnType))
                     throw new RuntimeException("Final " + errMsg);
         }
         
@@ -333,4 +343,16 @@ public abstract class EvalFunc<T>  {
     public Schema getInputSchema(){
     	return this.inputSchemaInternal;
     }
+
+    /**
+     * Returns the {@link SchemaType} of the EvalFunc. User defined functions can override
+     * this method to return {@link SchemaType#VARARG}. In this case the last FieldSchema
+     * added to the Schema in {@link #getArgToFuncMapping()} will be considered as a vararg field.
+     * 
+     * @return the schema type of the UDF
+     */
+    public SchemaType getSchemaType() {
+        return SchemaType.NORMAL;
+    }
+
 }

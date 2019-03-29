@@ -35,7 +35,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.compress.BZip2Codec;
 import org.apache.hadoop.io.compress.CompressionCodec;
-import org.apache.hadoop.io.compress.CompressionCodecFactory;
 import org.apache.hadoop.io.compress.GzipCodec;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.Job;
@@ -43,6 +42,7 @@ import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.pig.Expression;
 import org.apache.pig.FileInputLoadFunc;
@@ -81,9 +81,11 @@ import org.apache.pig.parser.ParserException;
  * An optional second constructor argument is provided that allows one to customize
  * advanced behaviors. A list of available options is below:
  * <ul>
- * <li><code>-schema</code> Reads/Stores the schema of the relation using a 
+ * <li><code>-schema</code> Reads/Stores the schema of the relation using a
  *  hidden JSON file.
  * <li><code>-noschema</code> Ignores a stored schema during loading.
+ * <li><code>-tagFile</code> Appends input source file name to beginning of each tuple.
+ * <li><code>-tagPath</code> Appends input source file path to beginning of each tuple.
  * </ul>
  * <p>
  * <h3>Schemas</h3>
@@ -92,12 +94,20 @@ import org.apache.pig.parser.ParserException;
  * field names and types of the data without the need for a user to explicitly provide the schema in an
  * <code>as</code> clause, unless <code>-noschema</code> is specified. No attempt to merge conflicting
  * schemas is made during loading. The first schema encountered during a file system scan is used.
- * If the schema file is not present while '-schema' option is used during loading, 
+ * If the schema file is not present while '-schema' option is used during loading,
  * it results in an error.
  * <p>
  * In addition, using <code>-schema</code> drops a ".pig_headers" file in the output directory.
  * This file simply lists the delimited aliases. This is intended to make export to tools that can read
  * files with header lines easier (just cat the header to your data).
+ * <p>
+ * <h3>Source tagging</h3>
+ * If<code>-tagFile</code> is specified, PigStorage will prepend input split name to each Tuple/row.
+ * Usage: A = LOAD 'input' using PigStorage(',','-tagFile'); B = foreach A generate $0;
+ * The first field (0th index) in each Tuple will contain input file name.
+ * If<code>-tagPath</code> is specified, PigStorage will prepend input split path to each Tuple/row.
+ * Usage: A = LOAD 'input' using PigStorage(',','-tagPath'); B = foreach A generate $0;
+ * The first field (0th index) in each Tuple will contain input file path
  * <p>
  * Note that regardless of whether or not you store the schema, you <b>always</b> need to specify
  * the correct delimiter to read your data. If you store reading delimiter "#" and then load using
@@ -138,9 +148,19 @@ LoadPushDown, LoadMetadata, StoreMetadata {
     protected boolean[] mRequiredColumns = null;
     private boolean mRequiredColumnsInitialized = false;
 
+    // Indicates whether the input file name/path should be read.
+    private boolean tagFile = false;
+    private static final String TAG_SOURCE_FILE = "tagFile";
+    private boolean tagPath = false;
+    private static final String TAG_SOURCE_PATH = "tagPath";
+    private Path sourcePath = null;
+
     private void populateValidOptions() {
         validOptions.addOption("schema", false, "Loads / Stores the schema of the relation using a hidden JSON file.");
         validOptions.addOption("noschema", false, "Disable attempting to load data schema from the filesystem.");
+        validOptions.addOption(TAG_SOURCE_FILE, false, "Appends input source file name to beginning of each tuple.");
+        validOptions.addOption(TAG_SOURCE_PATH, false, "Appends input source file path to beginning of each tuple.");
+        validOptions.addOption("tagsource", false, "Appends input source file name to beginning of each tuple.");
     }
 
     public PigStorage() {
@@ -166,6 +186,8 @@ LoadPushDown, LoadMetadata, StoreMetadata {
      * <ul>
      * <li><code>-schema</code> Loads / Stores the schema of the relation using a hidden JSON file.
      * <li><code>-noschema</code> Ignores a stored schema during loading.
+     * <li><code>-tagFile</code> Appends input source file name to beginning of each tuple.
+     * <li><code>-tagPath</code> Appends input source file path to beginning of each tuple.
      * </ul>
      * @param delimiter the single byte character that is used to separate fields.
      * @param options a list of options that can be used to modify PigStorage behavior
@@ -179,6 +201,14 @@ LoadPushDown, LoadMetadata, StoreMetadata {
             configuredOptions = parser.parse(validOptions, optsArr);
             isSchemaOn = configuredOptions.hasOption("schema");
             dontLoadSchema = configuredOptions.hasOption("noschema");
+            tagFile = configuredOptions.hasOption(TAG_SOURCE_FILE);
+            tagPath = configuredOptions.hasOption(TAG_SOURCE_PATH);
+            // TODO: Remove -tagsource in 0.13. For backward compatibility, we
+            // need tagsource to be supported until at least 0.12
+            if (configuredOptions.hasOption("tagsource")) {
+                mLog.warn("'-tagsource' is deprecated. Use '-tagFile' instead.");
+                tagFile = true;
+            }
         } catch (ParseException e) {
             HelpFormatter formatter = new HelpFormatter();
             formatter.printHelp( "PigStorage(',', '[options]')", validOptions);
@@ -198,6 +228,13 @@ LoadPushDown, LoadMetadata, StoreMetadata {
             }
             mRequiredColumnsInitialized = true;
         }
+        //Prepend input source path if source tagging is enabled
+        if(tagFile) {
+            mProtoTuple.add(new DataByteArray(sourcePath.getName()));
+        } else if (tagPath) {
+            mProtoTuple.add(new DataByteArray(sourcePath.toString()));
+        }
+
         try {
             boolean notDone = in.nextKeyValue();
             if (!notDone) {
@@ -211,14 +248,14 @@ LoadPushDown, LoadMetadata, StoreMetadata {
             for (int i = 0; i < len; i++) {
                 if (buf[i] == fieldDel) {
                     if (mRequiredColumns==null || (mRequiredColumns.length>fieldID && mRequiredColumns[fieldID]))
-                        readField(buf, start, i);
+                        addTupleValue(mProtoTuple, buf, start, i);
                     start = i + 1;
                     fieldID++;
                 }
             }
             // pick up the last field
             if (start <= len && (mRequiredColumns==null || (mRequiredColumns.length>fieldID && mRequiredColumns[fieldID]))) {
-                readField(buf, start, len);
+                addTupleValue(mProtoTuple, buf, start, len);
             }
             Tuple t =  mTupleFactory.newTupleNoCopy(mProtoTuple);
 
@@ -239,16 +276,31 @@ LoadPushDown, LoadMetadata, StoreMetadata {
             Properties p = UDFContext.getUDFContext().getUDFProperties(this.getClass(),
                     new String[] {signature});
             String serializedSchema = p.getProperty(signature+".schema");
-            if (serializedSchema == null) return tup;
-            try {
-                schema = new ResourceSchema(Utils.getSchemaFromString(serializedSchema));
-            } catch (ParserException e) {
-                mLog.error("Unable to parse serialized schema " + serializedSchema, e);
+            if (serializedSchema != null) {
+                try {
+                    schema = new ResourceSchema(Utils.getSchemaFromString(serializedSchema));
+                } catch (ParserException e) {
+                    mLog.error("Unable to parse serialized schema " + serializedSchema, e);
+                    // all bets are off - there's no guarantee that we'll return
+                    // either the fields in the data or the fields in the schema
+                    // the user specified (or required)
+                }
             }
         }
 
-        if (schema != null) {
-
+        if (schema == null) {
+            // if the number of required fields are less than or equal to 
+            // the number of fields in the data then we're OK as we've already
+            // read only the required number of fields into the tuple. If 
+            // more fields are required than are in the data then we'll pad
+            // with nulls:
+            int numRequiredColumns = 0;
+            for (int i = 0; mRequiredColumns != null && i < mRequiredColumns.length; i++)
+                if(mRequiredColumns[i])
+                    ++numRequiredColumns;
+            for (int i = tup.size();i < numRequiredColumns; ++i)
+                tup.append(null);
+        } else {
             ResourceFieldSchema[] fieldSchemas = schema.getFields();
             int tupleIdx = 0;
             // If some fields have been projected out, the tuple
@@ -257,13 +309,17 @@ LoadPushDown, LoadMetadata, StoreMetadata {
             // and cast those.
             for (int i = 0; i < fieldSchemas.length; i++) {
                 if (mRequiredColumns == null || (mRequiredColumns.length>i && mRequiredColumns[i])) {
+                    if (tupleIdx >= tup.size()) {
+                        tup.append(null);
+                    }
+                    
                     Object val = null;
                     if(tup.get(tupleIdx) != null){
                         byte[] bytes = ((DataByteArray) tup.get(tupleIdx)).get();
                         val = CastUtils.convertToType(caster, bytes,
                                 fieldSchemas[i], fieldSchemas[i].getType());
+                        tup.set(tupleIdx, val);
                     }
-                    tup.set(tupleIdx, val);
                     tupleIdx++;
                 }
             }
@@ -280,12 +336,22 @@ LoadPushDown, LoadMetadata, StoreMetadata {
         }
     }
 
-    private void readField(byte[] buf, int start, int end) {
+    private void addTupleValue(ArrayList<Object> tuple, byte[] buf, int start, int end) {
+        tuple.add(readField(buf, start, end));
+    }
+
+    /**
+     * Read the bytes between start and end into a DataByteArray for inclusion in the return tuple.
+     * @param bytes byte array to copy data from
+     * @param start starting point to copy from
+     * @param end ending point to copy to, exclusive.
+     * @return
+     */
+    protected DataByteArray readField(byte[] bytes, int start, int end) {
         if (start == end) {
-            // NULL value
-            mProtoTuple.add(null);
+            return null;
         } else {
-            mProtoTuple.add(new DataByteArray(buf, start, end));
+            return new DataByteArray(bytes, start, end);
         }
     }
 
@@ -343,6 +409,9 @@ LoadPushDown, LoadMetadata, StoreMetadata {
     @Override
     public void prepareToRead(RecordReader reader, PigSplit split) {
         in = reader;
+        if (tagFile || tagPath) {
+            sourcePath = ((FileSplit)split.getWrappedSplit()).getPath();
+        }
     }
 
     @Override
@@ -431,6 +500,13 @@ LoadPushDown, LoadMetadata, StoreMetadata {
         StoreFunc.cleanupOnFailureImpl(location, job);
     }
 
+    @Override
+    public void cleanupOnSuccess(String location, Job job)
+    throws IOException {
+        // DEFAULT: do nothing
+    }
+
+
 
     //------------------------------------------------------------------------
     // Implementation of LoadMetaData interface
@@ -442,6 +518,11 @@ LoadPushDown, LoadMetadata, StoreMetadata {
             schema = (new JsonMetadata()).getSchema(location, job, isSchemaOn);
 
             if (signature != null && schema != null) {
+                if(tagFile) {
+                    schema = Utils.getSchemaWithInputSourceTag(schema, "INPUT_FILE_NAME");
+                } else if(tagPath) {
+                    schema = Utils.getSchemaWithInputSourceTag(schema, "INPUT_FILE_PATH");
+                }
                 Properties p = UDFContext.getUDFContext().getUDFProperties(this.getClass(),
                         new String[] {signature});
                 p.setProperty(signature + ".schema", schema.toString());

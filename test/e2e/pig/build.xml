@@ -19,8 +19,13 @@
 
   <property name="pig.dir" value="${basedir}/../../.."/>
   <property name="pig.jar" value="${pig.dir}/pig.jar"/>
+  <property name="ivy.dir" location="${pig.dir}/ivy" />
+  <loadproperties srcfile="${ivy.dir}/libraries.properties"/>
+
   <property name="jython.jar"
-    value="${pig.dir}/build/ivy/lib/Pig/jython-2.5.0.jar"/>
+    value="${pig.dir}/build/ivy/lib/Pig/jython-standalone-${jython.version}.jar"/>
+  <property name="jruby.jar"
+    value="${pig.dir}/build/ivy/lib/Pig/jruby-complete-${jruby.version}.jar"/>
 
   <!-- Separate property name for udfs' build.xml -->
   <property name="pig.jarfile" value="${pig.jar}"/>
@@ -28,6 +33,8 @@
   <property name="udf.java.dir" value="${udf.dir}/java"/>
   <property name="udf.jar" value="${udf.java.dir}/testudf.jar"/>
   <property name="python.udf.dir" value="${udf.dir}/python"/>
+  <property name="ruby.udf.dir" value="${udf.dir}/ruby" />
+  <property name="cpython.udf.dir" value="${udf.dir}/cpython" />
   <property name="params.dir" value="${basedir}/paramfiles"/>
   <property name="e2e.lib.dir" value="${basedir}/lib"/>
   <property name="streaming.dir" value="${basedir}/streaming"/>
@@ -39,14 +46,78 @@
   <property name="driver.src" value="${basedir}/drivers"/>
   <property name="deployer.src" value="${basedir}/deployers"/>
   <property name="conf.src" value="${basedir}/conf"/>
+  <property name="resource.src" value="${basedir}/resource"/>
   <property name="tool.src" value="${basedir}/tools"/>
 
   <property name="harness.dir" value="${basedir}/../harness"/>
   <property name="harness.tar" value="${harness.dir}/harness.tar"/>
+  <property name="harness.PH_LOCAL" value="."/>
+  <property name="harness.PH_OUT" value="."/>
+  <property name="harness.PERL5LIB" value="./libexec"/>
 
   <property name="test.location" value="${basedir}/testdist"/>
   <property name="benchmark.location" value="${test.location}/benchmarks"/>
 
+
+  <condition property="HADOOP_PREFIX" value="">
+    <not>  
+      <isset property="HADOOP_PREFIX"/>
+    </not>
+  </condition>
+
+  <condition property="HADOOP_COMMON_HOME" value="">
+    <not>  
+      <isset property="HADOOP_COMMON_HOME"/>
+    </not>
+  </condition>
+
+  <condition property="HADOOP_HDFS_HOME" value="">
+    <not>  
+      <isset property="HADOOP_HDFS_HOME"/>
+    </not>
+  </condition>
+
+  <condition property="HADOOP_MAPRED_HOME" value="">
+    <not>  
+      <isset property="HADOOP_MAPRED_HOME"/>
+    </not>
+  </condition>
+
+  <condition property="YARN_CONF_DIR" value="">
+    <not>  
+      <isset property="YARN_CONF_DIR"/>
+    </not>
+  </condition>
+
+  <condition property="YARN_HOME" value="">
+    <not>  
+      <isset property="YARN_HOME"/>
+    </not>
+  </condition>
+
+  <condition property="OLD_HADOOP_HOME" value="">
+    <not>  
+      <isset property="OLD_HADOOP_HOME"/>
+    </not>
+  </condition>
+
+  <condition property="PH_OLD_CLUSTER_CONF" value="">
+    <not>  
+      <isset property="PH_OLD_CLUSTER_CONF"/>
+    </not>
+  </condition>
+
+  <condition property="hcat.bin" value="hcat">
+    <not>
+      <isset property="hcat.bin"/>
+    </not>
+  </condition>
+
+  <condition property="PH_BENCHMARK_CACHE_PATH" value="">
+    <not>  
+      <isset property="PH_BENCHMARK_CACHE_PATH"/>
+    </not>
+  </condition>
 
   <!-- Build the UDFs -->
   <target name="pig-jar-available">
@@ -71,6 +142,8 @@
     <mkdir dir="${tar.dir}/libexec/PigTest/test"/>
     <mkdir dir="${tar.dir}/libexec/PigTest/generate"/>
     <mkdir dir="${tar.dir}/libexec/python"/>
+    <mkdir dir="${tar.dir}/libexec/ruby"/>
+    <mkdir dir="${tar.dir}/libexec/cpython"/>
     <mkdir dir="${tar.dir}/lib"/>
     <mkdir dir="${tar.dir}/lib/java"/>
     <mkdir dir="${tar.dir}/paramfiles"/>
@@ -90,6 +163,10 @@
 
     <copy todir="${tar.dir}/conf">
       <fileset dir="${conf.src}"/>
+    </copy>
+
+    <copy todir="${tar.dir}/resource">
+      <fileset dir="${resource.src}"/>
     </copy>
 
     <copy todir="${tar.dir}/libexec/PigTest">
@@ -112,6 +189,14 @@
 
     <copy todir="${tar.dir}/libexec/python">
       <fileset dir="${python.udf.dir}"/>
+    </copy>
+
+    <copy todir="${tar.dir}/libexec/ruby">
+      <fileset dir="${ruby.udf.dir}"/>
+    </copy>
+
+    <copy todir="${tar.dir}/libexec/cpython">
+      <fileset dir="${cpython.udf.dir}"/>
     </copy>
 
     <copy todir="${tar.dir}/paramfiles">
@@ -174,19 +259,47 @@
   <target name="test-base" depends="property-check, udfs, tar, init-test">
     <!-- If they have not specified tests to run then null it out -->
     <property name="tests.to.run" value=""/>
+    <!-- fork (parallelization) factors for e2e tests execution. 
+	Defaults are 1, which means *no* parellelization: -->
+    <property name="fork.factor.group" value="1"/>
+    <property name="fork.factor.conf.file" value="1"/>
+    <property name="hadoop.mapred.local.dir" value="/tmp/hadoop/mapred/local"/>
+    <property name="e2e.debug" value="false"/>
+    <property name="harness.use.python" value="false"/>
 
-    <exec executable="./test_harness.pl" dir="${test.location}" failonerror="true">
+    <exec executable="perl" dir="${test.location}" failonerror="true">
       <env key="HARNESS_ROOT" value="."/>
-      <env key="PH_LOCAL" value="."/>
-      <env key="PH_OUT" value="."/>
+      <env key="HADOOP_VERSION" value="${hadoopversion}"/>
+      <env key="PH_LOCAL" value="${harness.PH_LOCAL}"/>
+      <env key="PH_OUT" value="${harness.PH_OUT}"/>
       <env key="PH_ROOT" value="."/>
       <env key="PH_PIG" value="${pig.dir}"/>
       <env key="PH_OLDPIG" value="${harness.old.pig}"/>
-      <env key="PH_CLUSTER_CONF" value="${harness.cluster.conf}"/>
+      <env key="HADOOP_CONF_DIR" value="${harness.cluster.conf}"/>
+      <env key="PIG_USE_PYTHON" value="${harness.use.python}"/>
       <env key="PH_CLUSTER_BIN" value="${harness.cluster.bin}"/>
       <env key="PH_JYTHON_JAR" value="${jython.jar}"/>
+      <env key="PH_JRUBY_JAR" value="${jruby.jar}"/>
+      <env key="JRUBY_OPTS" value="--1.9"/>
       <env key="HARNESS_CONF" value="${harness.conf.file}"/>
       <env key="HADOOP_HOME" value="${harness.hadoop.home}"/>
+      <env key="HADOOP_PREFIX" value="${HADOOP_PREFIX}"/>
+      <env key="HADOOP_COMMON_HOME" value="${HADOOP_COMMON_HOME}"/>
+      <env key="HADOOP_HDFS_HOME" value="${HADOOP_HDFS_HOME}"/>
+      <env key="HADOOP_MAPRED_HOME" value="${HADOOP_MAPRED_HOME}"/>
+      <env key="YARN_CONF_DIR" value="${YARN_CONF_DIR}"/>
+      <env key="YARN_HOME" value="${YARN_HOME}"/>
+      <env key="OLD_HADOOP_HOME" value="${OLD_HADOOP_HOME}"/>
+      <env key="PH_OLD_CLUSTER_CONF" value="${PH_OLD_CLUSTER_CONF}"/>
+      <env key="PH_BENCHMARK_CACHE_PATH" value="${PH_BENCHMARK_CACHE_PATH}"/>
+      <env key="HCAT_BIN" value="${hcat.bin}"/>
+      <env key="PERL5LIB" value="${harness.PERL5LIB}"/>
+      <env key="FORK_FACTOR_GROUP" value="${fork.factor.group}"/>
+      <env key="FORK_FACTOR_FILE" value="${fork.factor.conf.file}"/>
+      <env key="HADOOP_MAPRED_LOCAL_DIR" value="${hadoop.mapred.local.dir}"/>
+      <env key="E2E_DEBUG" value="${e2e.debug}"/>
+
+      <arg value="./test_harness.pl"/>
       <arg line="${tests.to.run}"/>
       <arg value="${test.location}/tests/cmdline.conf"/>
       <arg value="${test.location}/tests/multiquery.conf"/>
@@ -198,6 +311,7 @@
       <arg value="${test.location}/tests/bigdata.conf"/>
       <arg value="${test.location}/tests/grunt.conf"/>
       <arg value="${test.location}/tests/macro.conf"/>
+      <arg value="${test.location}/tests/hcat.conf"/>
     </exec>
   </target>
 
@@ -214,18 +328,22 @@
   </target>
 
   <target name="deploy-base" depends="property-check, tar, init-test">
-    <exec executable="./test_harness.pl" dir="${test.location}" failonerror="true">
+    <exec executable="perl" dir="${test.location}" failonerror="true">
       <env key="HARNESS_ROOT" value="."/>
-      <env key="PH_LOCAL" value="."/>
-      <env key="PH_OUT" value="."/>
+      <env key="PH_LOCAL" value="${harness.PH_LOCAL}"/>
+      <env key="PH_OUT" value="${harness.PH_OUT}"/>
       <env key="PH_ROOT" value="."/>
       <env key="PH_PIG" value="${pig.dir}"/>
       <env key="PH_OLDPIG" value="${harness.old.pig}"/>
-      <env key="PH_CLUSTER_CONF" value="${harness.cluster.conf}"/>
+      <env key="HADOOP_CONF_DIR" value="${harness.cluster.conf}"/>
       <env key="PH_CLUSTER_BIN" value="${harness.cluster.bin}"/>
       <env key="PH_JYTHON_JAR" value="${jython.jar}"/>
+      <env key="PH_JRUBY_JAR" value="${jruby.jar}"/>
+      <env key="JRUBY_OPTS" value="--1.9"/>
       <env key="HARNESS_CONF" value="${harness.conf.file}"/>
+      <env key="HADOOP_HOME" value="${harness.hadoop.home}"/>
 
+      <arg value="./test_harness.pl"/>
       <arg value="-deploycfg"/>
       <arg value="${deploy.conf}"/>
       <arg value="${deploy.opt}"/>

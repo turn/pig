@@ -25,11 +25,13 @@ import java.io.InputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLDecoder;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -39,11 +41,26 @@ import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
 import java.util.zip.ZipEntry;
 
+import org.antlr.runtime.CommonTokenStream;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.util.StringUtils;
+import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.Launcher;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigMapReduce;
 import org.apache.pig.impl.PigContext;
+import org.apache.pig.impl.builtin.StreamingUDF;
+import org.apache.tools.bzip2r.BZip2Constants;
+import org.codehaus.jackson.annotate.JsonPropertyOrder;
+import org.codehaus.jackson.map.annotate.JacksonStdImpl;
+import org.joda.time.DateTime;
 
+import com.google.common.collect.Multimaps;
+
+import dk.brics.automaton.Automaton;
 
 public class JarManager {
 
@@ -84,9 +101,34 @@ public class JarManager {
         }
     }
 
-    final static String pigPackagesToSend[] = { "org/apache/pig","org/apache/tools/bzip2r",
-        "dk/brics/automaton", "org/antlr/runtime", "com/google/common" };
-    
+    private static enum DefaultPigPackages {
+
+        PIG("org/apache/pig", PigMapReduce.class),
+        BZIP2R("org/apache/tools/bzip2r", BZip2Constants.class),
+        AUTOMATON("dk/brics/automaton", Automaton.class),
+        ANTLR("org/antlr/runtime", CommonTokenStream.class),
+        GUAVA("com/google/common", Multimaps.class),
+        JACKSON_CORE("org/codehaus/jackson", JsonPropertyOrder.class),
+        JACKSON_MAPPER("org/codehaus/jackson", JacksonStdImpl.class),
+        JODATIME("org/joda/time", DateTime.class);
+
+        private final String pkgPrefix;
+        private final Class pkgClass;
+
+        DefaultPigPackages(String pkgPrefix, Class pkgClass) {
+            this.pkgPrefix = pkgPrefix;
+            this.pkgClass = pkgClass;
+        }
+
+        public String getPkgPrefix() {
+            return pkgPrefix;
+        }
+
+        public Class getPkgClass() {
+            return pkgClass;
+        }
+    }
+
     /**
      * Create a jarfile in a temporary path, that is a merge of all the jarfiles containing the
      * functions and the core pig classes.
@@ -99,19 +141,28 @@ public class JarManager {
      */
     @SuppressWarnings("deprecation")
     public static void createJar(OutputStream os, Set<String> funcs, PigContext pigContext) throws ClassNotFoundException, IOException {
+        JarOutputStream jarFile = new JarOutputStream(os);
+        HashMap<String, String> contents = new HashMap<String, String>();
         Vector<JarListEntry> jarList = new Vector<JarListEntry>();
-        for(String toSend: pigPackagesToSend) {
-            addContainingJar(jarList, PigMapReduce.class, toSend, pigContext);
+
+        for (DefaultPigPackages pkgToSend : DefaultPigPackages.values()) {
+            addContainingJar(jarList, pkgToSend.getPkgClass(), pkgToSend.getPkgPrefix(), pigContext);
         }
-        
+
         for (String func: funcs) {
             Class clazz = pigContext.getClassForAlias(func);
             if (clazz != null) {
                 addContainingJar(jarList, clazz, null, pigContext);
+                
+                if (clazz.getSimpleName().equals("StreamingUDF")) {
+                    for (String fileName : StreamingUDF.getResourcesForJar()) {
+                        InputStream in = Launcher.class.getResourceAsStream(fileName);
+                        addStream(jarFile, fileName, in, contents);
+                    }
+                }
             }
         }
-        HashMap<String, String> contents = new HashMap<String, String>();
-        JarOutputStream jarFile = new JarOutputStream(os);
+
         Iterator<JarListEntry> it = jarList.iterator();
         while (it.hasNext()) {
             JarListEntry jarEntry = it.next();
@@ -121,17 +172,34 @@ public class JarManager {
         for (String scriptJar: pigContext.scriptJars) {
             mergeJar(jarFile, scriptJar, null, contents);
         }
-        for (URL extraJar: pigContext.extraJars) {
-            // log.error("Adding extra " + pigContext.extraJars.get(i));
-            mergeJar(jarFile, extraJar, null, contents);
-        }
         for (String path: pigContext.scriptFiles) {
-        	addStream(jarFile, path, new FileInputStream(new File(path)),contents);
+            log.debug("Adding entry " + path + " to job jar" );
+            InputStream stream = null;
+            if (new File(path).exists()) {
+                stream = new FileInputStream(new File(path));
+            } else {
+                stream = PigContext.getClassLoader().getResourceAsStream(path);
+            }
+            if (stream==null) {
+                throw new IOException("Cannot find " + path);
+            }
+        	addStream(jarFile, path, stream, contents);
         }
         for (Map.Entry<String, File> entry : pigContext.getScriptFiles().entrySet()) {
-        	addStream(jarFile, entry.getKey(), new FileInputStream(entry.getValue()),contents);
+            log.debug("Adding entry " + entry.getKey() + " to job jar" );
+            InputStream stream = null;
+            if (entry.getValue().exists()) {
+                stream = new FileInputStream(entry.getValue());
+            } else {
+                stream = PigContext.getClassLoader().getResourceAsStream(entry.getValue().getPath());
+            }
+            if (stream==null) {
+                throw new IOException("Cannot find " + entry.getValue().getPath());
+            }
+        	addStream(jarFile, entry.getKey(), stream, contents);
         }
-        
+
+        log.debug("Adding entry pigContext to job jar" );
         jarFile.putNextEntry(new ZipEntry("pigContext"));
         new ObjectOutputStream(jarFile).writeObject(pigContext);
         jarFile.close();
@@ -177,7 +245,7 @@ public class JarManager {
     private static void mergeJar(JarOutputStream jarFile, String jar, String prefix, Map<String, String> contents)
             throws FileNotFoundException, IOException {
         JarInputStream jarInput = new JarInputStream(new FileInputStream(jar));
-        
+        log.debug("Adding jar " + jar + (prefix != null ? " for prefix "+prefix : "" ) + " to job jar" );
         mergeJar(jarFile, jarInput, prefix, contents);
     }
     
@@ -265,10 +333,19 @@ public class JarManager {
      * @throws IOException
      */
     public static String findContainingJar(Class my_class) {
-        ClassLoader loader = my_class.getClassLoader();
+        ClassLoader loader = PigContext.getClassLoader();
         String class_file = my_class.getName().replaceAll("\\.", "/") + ".class";
         try {
-            for (Enumeration itr = loader.getResources(class_file); itr.hasMoreElements();) {
+            Enumeration<URL> itr = null;
+            //Try to find the class in registered jars
+            if (loader instanceof URLClassLoader) {
+                itr = ((URLClassLoader) loader).findResources(class_file);
+            }
+            //Try system classloader if not URLClassLoader or no resources found in URLClassLoader
+            if (itr == null || !itr.hasMoreElements()) {
+                itr = loader.getResources(class_file);
+            }
+            for (; itr.hasMoreElements();) {
                 URL url = (URL) itr.nextElement();
                 if ("jar".equals(url.getProtocol())) {
                     String toReturn = url.getPath();
@@ -290,6 +367,52 @@ public class JarManager {
             throw new RuntimeException(e);
         }
         return null;
+    }
+    
+    /**
+     * Add the jars containing the given classes to the job's configuration
+     * such that JobClient will ship them to the cluster and add them to
+     * the DistributedCache
+     * 
+     * @param job
+     *           Job object
+     * @param classes
+     *            classes to find
+     * @throws IOException
+     */
+    public static void addDependencyJars(Job job, Class<?>... classes)
+            throws IOException {
+        Configuration conf = job.getConfiguration();
+        FileSystem fs = FileSystem.getLocal(conf);
+        Set<String> jars = new HashSet<String>();
+        jars.addAll(conf.getStringCollection("tmpjars"));
+        addQualifiedJarsName(fs, jars, classes);
+        if (jars.isEmpty())
+            return;
+        conf.set("tmpjars", StringUtils.arrayToString(jars.toArray(new String[0])));
+    }
+    
+    /**
+     * Add the qualified path name of jars containing the given classes 
+     * 
+     * @param fs
+     *            FileSystem object
+     * @param jars
+     *            the resolved path names to be added to this set
+     * @param classes
+     *            classes to find
+     */
+    private static void addQualifiedJarsName(FileSystem fs, Set<String> jars, Class<?>... classes) {
+        URI fsUri = fs.getUri();
+        Path workingDir = fs.getWorkingDirectory();
+        for (Class<?> clazz : classes) {
+            String jarName = findContainingJar(clazz);
+            if (jarName == null) {
+                log.warn("Could not find jar for class " + clazz);
+                continue;
+            }
+            jars.add(new Path(jarName).makeQualified(fsUri, workingDir).toString());
+        }
     }
 
 }

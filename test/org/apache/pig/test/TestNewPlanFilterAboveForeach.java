@@ -68,6 +68,24 @@ public class TestNewPlanFilterAboveForeach {
         Assert.assertTrue( fe2 instanceof LOForEach );
     }
     
+    @Test
+    public void testSimpleNotPossible() throws Exception {
+        String query = "A =LOAD 'file.txt' AS (name, cuisines:bag{ t : ( cuisine ) } );" +
+                "B = FOREACH A GENERATE name, flatten(cuisines) as cuisines;" +
+                "C = FILTER B BY cuisines == 'pizza';" +
+                "D = STORE C INTO 'empty';" ;  
+        LogicalPlan newLogicalPlan = buildPlan( query );
+        
+        Operator load = newLogicalPlan.getSources().get( 0 );
+        Assert.assertTrue( load instanceof LOLoad );
+        Operator fe1  = newLogicalPlan.getSuccessors( load ).get( 0 );
+        Assert.assertTrue( fe1 instanceof LOForEach );
+        Operator fe2 = newLogicalPlan.getSuccessors( fe1 ).get( 0 );
+        Assert.assertTrue( fe2 instanceof LOForEach );
+        Operator filter = newLogicalPlan.getSuccessors( fe2 ).get( 0 );
+        Assert.assertTrue( filter instanceof LOFilter );
+    }
+    
     /**
      * Non-deterministic filters should not be pushed up (see PIG-2014).
      * In the example below, if Filter gets pushed above flatten, we might remove
@@ -300,8 +318,6 @@ public class TestNewPlanFilterAboveForeach {
         Assert.assertTrue( filter instanceof LOFilter );
         Operator fe = newLogicalPlan.getSuccessors( filter ).get( 0 );
         Assert.assertTrue( fe instanceof LOForEach );
-        fe = newLogicalPlan.getSuccessors( fe ).get( 0 );
-        Assert.assertTrue( fe instanceof LOForEach );
         Operator store = newLogicalPlan.getSuccessors( fe ).get( 0 );
         Assert.assertTrue( store instanceof LOStore );
     }
@@ -318,8 +334,6 @@ public class TestNewPlanFilterAboveForeach {
         Operator load = newLogicalPlan.getSources().get( 0 );
         Assert.assertTrue( load instanceof LOLoad );
         Operator fe = newLogicalPlan.getSuccessors( load ).get( 0 );
-        Assert.assertTrue( fe instanceof LOForEach );
-        fe = newLogicalPlan.getSuccessors( fe ).get( 0 );
         Assert.assertTrue( fe instanceof LOForEach );
         Operator filter = newLogicalPlan.getSuccessors( fe ).get( 0 );
         Assert.assertTrue( filter instanceof LOFilter );
@@ -339,8 +353,6 @@ public class TestNewPlanFilterAboveForeach {
         Operator load = newLogicalPlan.getSources().get( 0 );
         Assert.assertTrue( load instanceof LOLoad );
         Operator fe = newLogicalPlan.getSuccessors( load ).get( 0 );
-        Assert.assertTrue( fe instanceof LOForEach );
-        fe = newLogicalPlan.getSuccessors( fe ).get( 0 );
         Assert.assertTrue( fe instanceof LOForEach );
         Operator filter = newLogicalPlan.getSuccessors( fe ).get( 0 );
         Assert.assertTrue( filter instanceof LOFilter );
@@ -363,8 +375,6 @@ public class TestNewPlanFilterAboveForeach {
         Assert.assertTrue( filter instanceof LOFilter );
         Operator fe = newLogicalPlan.getSuccessors( filter ).get( 0 );
         Assert.assertTrue( fe instanceof LOForEach );
-        fe = newLogicalPlan.getSuccessors( fe ).get( 0 );
-        Assert.assertTrue( fe instanceof LOForEach );
         Operator store = newLogicalPlan.getSuccessors( fe ).get( 0 );
         Assert.assertTrue( store instanceof LOStore );
     }
@@ -385,8 +395,6 @@ public class TestNewPlanFilterAboveForeach {
         Assert.assertTrue( filter instanceof LOFilter );
         Operator fe = newLogicalPlan.getSuccessors( filter ).get( 0 );
         Assert.assertTrue( fe instanceof LOForEach );
-        fe = newLogicalPlan.getSuccessors( fe ).get( 0 );
-        Assert.assertTrue( fe instanceof LOForEach );
         Operator store = newLogicalPlan.getSuccessors( fe ).get( 0 );
         Assert.assertTrue( store instanceof LOStore );
     }
@@ -406,8 +414,6 @@ public class TestNewPlanFilterAboveForeach {
         Assert.assertTrue( filter instanceof LOFilter );
         Operator fe = newLogicalPlan.getSuccessors( filter ).get( 0 );
         Assert.assertTrue( fe instanceof LOForEach );
-        fe = newLogicalPlan.getSuccessors( fe ).get( 0 );
-        Assert.assertTrue( fe instanceof LOForEach );
         Operator store = newLogicalPlan.getSuccessors( fe ).get( 0 );
         Assert.assertTrue( store instanceof LOStore );
     }
@@ -426,8 +432,6 @@ public class TestNewPlanFilterAboveForeach {
         Operator filter = newLogicalPlan.getSuccessors( load ).get( 0 );
         Assert.assertTrue( filter instanceof LOFilter );
         Operator fe = newLogicalPlan.getSuccessors( filter ).get( 0 );
-        Assert.assertTrue( fe instanceof LOForEach );
-        fe = newLogicalPlan.getSuccessors( fe ).get( 0 );
         Assert.assertTrue( fe instanceof LOForEach );
         Operator store = newLogicalPlan.getSuccessors( fe ).get( 0 );
         Assert.assertTrue( store instanceof LOStore );

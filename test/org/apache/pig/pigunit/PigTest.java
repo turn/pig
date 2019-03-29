@@ -18,10 +18,10 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringReader;
-import java.io.StringWriter;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -34,9 +34,10 @@ import org.apache.pig.ExecType;
 import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.data.DataType;
 import org.apache.pig.data.Tuple;
+import org.apache.pig.impl.PigContext;
+import org.apache.pig.impl.io.FileLocalizer;
 import org.apache.pig.impl.logicalLayer.schema.Schema;
 import org.apache.pig.pigunit.pig.PigServer;
-import org.apache.pig.tools.parameters.ParameterSubstitutionPreprocessor;
 import org.apache.pig.tools.parameters.ParseException;
 
 /**
@@ -57,8 +58,9 @@ public class PigTest {
   /** The list of aliases to override in the script. */
   private final Map<String, String> aliasOverrides;
 
-  private static PigServer pig;
-  private static Cluster cluster;
+  private static ThreadLocal<PigServer> pig = new ThreadLocal<PigServer>();
+  private static ThreadLocal<Cluster> cluster = new ThreadLocal<Cluster>();
+
   private static final Logger LOG = Logger.getLogger(PigTest.class);
   private static final String EXEC_CLUSTER = "pigunit.exectype.cluster";
 
@@ -107,30 +109,39 @@ public class PigTest {
   public PigTest(String scriptPath, String[] args, PigServer pig, Cluster cluster)
       throws IOException {
     this(args, null, readFile(scriptPath));
-    PigTest.pig = pig;
-    PigTest.cluster = cluster;
+    PigTest.pig.set(pig);
+    PigTest.cluster.set(cluster);
   }
 
   /**
    * Connects and starts if needed the PigServer.
    *
-   * @return The cluster where input files can be copied.
+   * @return Reference to the Cluster in ThreadLocal.
    * @throws ExecException If the PigServer can't be started.
    */
   public static Cluster getCluster() throws ExecException {
-    if (cluster == null) {
+    if (cluster.get() == null) {
       if (System.getProperties().containsKey(EXEC_CLUSTER)) {
         LOG.info("Using cluster mode");
-        pig = new PigServer(ExecType.MAPREDUCE);
+        pig.set(new PigServer(ExecType.MAPREDUCE));
       } else {
         LOG.info("Using default local mode");
-        pig = new PigServer(ExecType.LOCAL);
+        pig.set(new PigServer(ExecType.LOCAL));
       }
 
-      cluster = new Cluster(pig.getPigContext());
+      cluster.set(new Cluster(pig.get().getPigContext()));
     }
 
-    return cluster;
+    return cluster.get();
+  }
+
+  /**
+   * Return the PigServer.
+   *
+   * @return Reference to the PigServer in ThreadLocal.
+   */
+  public static PigServer getPigServer() {
+    return pig.get();
   }
 
   /**
@@ -140,15 +151,14 @@ public class PigTest {
    * @throws ParseException The pig script could not have all its variables substituted.
    */
   protected void registerScript() throws IOException, ParseException {
-    PigTest.getCluster();
+    getCluster();
 
-    BufferedReader pigIStream = new BufferedReader(new StringReader(this.originalTextPigScript));
-    StringWriter pigOStream = new StringWriter();
+    BufferedReader reader = new BufferedReader(new StringReader(this.originalTextPigScript));
+    PigContext context = getPigServer().getPigContext();
 
-    ParameterSubstitutionPreprocessor ps = new ParameterSubstitutionPreprocessor(50);
-    ps.genSubstitutedFile(pigIStream, pigOStream, args, argFiles);
-
-    String substitutedPig = pigOStream.toString();
+    String substitutedPig = context.doParamSubstitution(reader,
+                                                        args == null ? null : Arrays.asList(args),
+                                                        argFiles == null ? null : Arrays.asList(argFiles));
     LOG.info(substitutedPig);
 
     File f = File.createTempFile("tmp", "pigunit");
@@ -157,7 +167,7 @@ public class PigTest {
     pw.close();
 
     String pigSubstitutedFile = f.getCanonicalPath();
-    pig.registerScript(pigSubstitutedFile, aliasOverrides);
+    getPigServer().registerScript(pigSubstitutedFile, aliasOverrides);
   }
 
   /**
@@ -180,7 +190,15 @@ public class PigTest {
    */
   public Iterator<Tuple> getAlias(String alias) throws IOException, ParseException {
     registerScript();
-    return pig.openIterator(alias);
+    return getPigServer().openIterator(alias);
+  }
+  
+  /**
+   * Gets an iterator on the content of one alias of a cached script. The script itself
+   * must be already be registered with registerScript().
+   */
+  private Iterator<Tuple> getAliasFromCache(String alias) throws IOException, ParseException {
+    return getPigServer().openIterator(alias);
   }
 
   /**
@@ -193,7 +211,7 @@ public class PigTest {
     registerScript();
     String alias = aliasOverrides.get("LAST_STORE_ALIAS");
 
-    return getAlias(alias);
+    return getAliasFromCache(alias);
   }
 
   /**
@@ -224,39 +242,44 @@ public class PigTest {
     registerScript();
     String alias = aliasOverrides.get("LAST_STORE_ALIAS");
 
-    assertEquals(StringUtils.join(expected, "\n"), StringUtils.join(getAlias(alias), "\n"));
+    assertEquals(StringUtils.join(expected, "\n"), StringUtils.join(getAliasFromCache(alias), "\n"));
   }
 
   public void assertOutput(String alias, String[] expected) throws IOException, ParseException {
     registerScript();
 
-    assertEquals(StringUtils.join(expected, "\n"), StringUtils.join(getAlias(alias), "\n"));
+    assertEquals(StringUtils.join(expected, "\n"), StringUtils.join(getAliasFromCache(alias), "\n"));
   }
 
   public void assertOutput(File expected) throws IOException, ParseException {
     registerScript();
     String alias = aliasOverrides.get("LAST_STORE_ALIAS");
 
-    assertEquals(readFile(expected), StringUtils.join(getAlias(alias), "\n"));
+    assertEquals(readFile(expected).replaceAll("\r\n", "\n"), StringUtils.join(getAliasFromCache(alias), "\n"));
   }
 
   public void assertOutput(String alias, File expected) throws IOException, ParseException {
     registerScript();
 
-    assertEquals(readFile(expected), StringUtils.join(getAlias(alias), "\n"));
+    assertEquals(readFile(expected).replaceAll("\r\n", "\n"), StringUtils.join(getAliasFromCache(alias), "\n"));
   }
 
   public void assertOutput(String aliasInput, String[] input, String alias, String[] expected)
       throws IOException, ParseException {
+    assertOutput(aliasInput, input, alias, expected, "\\t");
+  }
+
+  public void assertOutput(String aliasInput, String[] input, String alias, String[] expected, String delimiter)
+      throws IOException, ParseException {
     registerScript();
 
     StringBuilder sb = new StringBuilder();
-    Schema.stringifySchema(sb, pig.dumpSchema(aliasInput), DataType.TUPLE) ;
+    Schema.stringifySchema(sb, getPigServer().dumpSchema(aliasInput), DataType.TUPLE) ;
 
-    final String destination = "pigunit-input-overriden.txt";
-    cluster.copyFromLocalFile(input, destination, true);
+    final String destination = FileLocalizer.getTemporaryPath(getPigServer().getPigContext()).toString();
+    getCluster().copyFromLocalFile(input, destination, true);
     override(aliasInput,
-        String.format("%s = LOAD '%s' AS %s;", aliasInput, destination, sb.toString()));
+        String.format("%s = LOAD '%s' USING PigStorage('%s') AS %s;", aliasInput, destination, delimiter, sb.toString()));
 
     assertOutput(alias, expected);
   }

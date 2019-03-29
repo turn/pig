@@ -68,19 +68,19 @@ sub checkPrerequisites
     # They must have declared the conf directory for their Hadoop installation
     if (! defined $cfg->{'hadoopconfdir'} || $cfg->{'hadoopconfdir'} eq "") {
         print $log "You must set the key 'hadoopconfdir' to your Hadoop conf directory "
-            . "in existing.conf\n";
-        die "hadoopconfdir is not set in existing.conf\n";
+            . "in existing_deployer.conf\n";
+        die "hadoopconfdir is not set in existing_deployer.conf\n";
     }
     
     # They must have declared the executable path for their Hadoop installation
     if (! defined $cfg->{'hadoopbin'} || $cfg->{'hadoopbin'} eq "") {
         print $log "You must set the key 'hadoopbin' to your Hadoop bin path"
-            . "in existing.conf\n";
-        die "hadoopbin is not set in existing.conf\n";
+            . "in existing_deployer.conf\n";
+        die "hadoopbin is not set in existing_deployer.conf\n";
     }
 
     # Run a quick and easy Hadoop command to make sure we can
-    $self->runHadoopCmd($cfg, $log, "fs -ls /");
+    $self->runPigCmd($cfg, $log, "fs -ls /");
 
 }
 
@@ -183,6 +183,11 @@ sub generateData
             'filetype' => "studenttab",
             'rows' => 1,
             'hdfs' => "singlefile/fileexists",
+        },{
+            'name' => "nameMap",
+            'filetype' => "studenttab",
+            'rows' => 1,
+            'hdfs' => "nameMap/part-00000",
         }, {
             'name' => "studenttab20m",
             'filetype' => "studenttab",
@@ -213,23 +218,43 @@ sub generateData
             'filetype' => "voternulltab",
             'rows' => 10000,
             'hdfs' => "singlefile/voternulltab10k",
-        },
+        }, {
+            'name' => "allscalar10k",
+            'filetype' => "allscalar",
+            'rows' => 10000,
+            'hdfs' => "singlefile/allscalar10k",
+        }, {
+            'name' => "numbers.txt",
+            'filetype' => "numbers",
+            'rows' => 5000,
+            'hdfs' => "types/numbers.txt",
+        }, {
+            'name' => "biggish",
+            'filetype' => "biggish",
+            'rows' => 1000000,
+            'hdfs' => "singlefile/biggish",
+        }, {
+            'name' => "prerank",
+            'filetype' => "ranking",
+            'rows' => 30,
+            'hdfs' => "singlefile/prerank",
+        }
     );
 
 	# Create the HDFS directories
-	$self->runHadoopCmd($cfg, $log, "fs -mkdir $cfg->{'inpathbase'}");
+	$self->runPigCmd($cfg, $log, "fs -mkdir $cfg->{'inpathbase'}");
 
     foreach my $table (@tables) {
 		print "Generating data for $table->{'name'}\n";
 		# Generate the data
-        my @cmd = ($cfg->{'gentool'}, $table->{'filetype'}, $table->{'rows'},
+        my @cmd = ("perl", $cfg->{'gentool'}, $table->{'filetype'}, $table->{'rows'},
             $table->{'name'});
 		$self->runCmd($log, \@cmd);
 
 		# Copy the data to HDFS
-		my $hadoop = "fs -copyFromLocal $table->{'name'} ".
+		my $hadoop = "copyFromLocal $table->{'name'} ".
 			"$cfg->{'inpathbase'}/$table->{'hdfs'}";
-		$self->runHadoopCmd($cfg, $log, $hadoop);
+		$self->runPigCmd($cfg, $log, $hadoop);
 
     }
 }
@@ -315,7 +340,7 @@ sub undeploy
 #
 sub confirmUndeployment
 {
-    die "$0 INFO : confirmUndeployment is a virtual function!";
+    # TODO: implement a correct confirmation, but let's not die there.
 }
 
 # TODO
@@ -323,17 +348,24 @@ sub confirmUndeployment
 # it can use the existing utilities to build Pig commands and switch
 # naturally to local mode with everything else.
 
-sub runHadoopCmd($$$$)
+sub runPigCmd($$$$)
 {
     my ($self, $cfg, $log, $c) = @_;
 
-    # set the PIG_CLASSPATH environment variable
-    $ENV{'HADOOP_CLASSPATH'} = "$cfg->{'hadoopconfdir'}";
-                          
-    my @cmd = ("$cfg->{'hadoopbin'}");
-    push(@cmd, split(' ', $c));
+    my @pigCmd = "";
 
-    $self->runCmd($log, \@cmd);
+    if ($cfg->{'usePython'} eq "true") {
+      @pigCmd = ("$cfg->{'pigpath'}/bin/pig.py");
+    } else {
+      @pigCmd = ("$cfg->{'pigpath'}/bin/pig");
+    }
+    push(@pigCmd, '-e');
+    push(@pigCmd, split(' ', $c));
+
+    # set the PIG_CLASSPATH environment variable
+    $ENV{'PIG_CLASSPATH'} = "$cfg->{'hadoopconfdir'}";
+                          
+    $self->runCmd($log, \@pigCmd);
 }
 
 sub runCmd($$$)

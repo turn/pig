@@ -17,6 +17,7 @@
  */
 package org.apache.pig.impl.io;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -31,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
-import java.util.Stack;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -408,39 +408,17 @@ public class FileLocalizer {
     
     static public boolean delete(String fileSpec, PigContext pigContext) throws IOException{
         fileSpec = checkDefaultPrefix(pigContext.getExecType(), fileSpec);
+        ElementDescriptor elem = null;
         if (!fileSpec.startsWith(LOCAL_PREFIX)) {
-            ElementDescriptor elem = pigContext.getDfs().asElement(fileSpec);
-            elem.delete();
-            return true;
+            elem = pigContext.getDfs().asElement(fileSpec);
+        } else {
+            elem = pigContext.getLfs().asElement(fileSpec);
         }
-        else {
-            fileSpec = fileSpec.substring(LOCAL_PREFIX.length());
-            boolean ret = true;
-            // TODO probably this should be replaced with the local file system
-            File f = (new File(fileSpec));
-            // TODO this only deletes the file. Any dirs createdas a part of this
-            // are not removed.
-            if (f!=null){
-                ret = f.delete();
-            }
-            
-            return ret;
-        }
+        elem.delete();
+        return true;
     }
 
     static Random      r           = new Random();
-
-    /**
-     * Thread local toDelete Stack to hold descriptors to be deleted upon calling
-     * deleteTempFiles. Use the toDelete() method to access this stack.
-     */
-    private static ThreadLocal<Stack<ElementDescriptor>> toDelete =
-        new ThreadLocal<Stack<ElementDescriptor>>() {
-
-        protected Stack<ElementDescriptor> initialValue() {
-            return new Stack<ElementDescriptor>();
-        }
-    };
 
     /**
      * Thread local relativeRoot ContainerDescriptor. Do not access this object
@@ -450,14 +428,6 @@ public class FileLocalizer {
     private static ThreadLocal<ContainerDescriptor> relativeRoot =
         new ThreadLocal<ContainerDescriptor>() {
     };
-
-    /**
-     * Convenience accessor method to the toDelete Stack bound to this thread.
-     * @return A Stack of ElementDescriptors that should be deleted.
-     */
-    private static Stack<ElementDescriptor> toDelete() {
-        return toDelete.get();
-    }
 
     /**
      * This method is only used by test code to reset state.
@@ -484,56 +454,37 @@ public class FileLocalizer {
         if (relativeRoot.get() == null) {
             String tdir= pigContext.getProperties().getProperty("pig.temp.dir", "/tmp");
             relativeRoot.set(pigContext.getDfs().asContainer(tdir + "/temp" + r.nextInt()));
-            toDelete().push(relativeRoot.get());
         }
 
         return relativeRoot.get();
     }
 
     public static void deleteTempFiles() {
-        while (!toDelete().empty()) {
+        if (relativeRoot.get() != null) {
             try {
-                ElementDescriptor elem = toDelete().pop();
-                elem.delete();
-            } 
-            catch (IOException e) {
+                relativeRoot.get().delete();
+            } catch (IOException e) {
                 log.error(e);
             }
+            setInitialized(false);
         }
-        setInitialized(false);
-    }
-
-    /**
-     * @deprecated Use {@link #getTemporaryPath(PigContext)} instead
-     */
-    @Deprecated
-    public static synchronized ElementDescriptor 
-        getTemporaryPath(ElementDescriptor relative, 
-                         PigContext pigContext) throws IOException {
-        if (relative == null) {
-            relative = relativeRoot(pigContext);
-        }
-        if (!relativeRoot(pigContext).exists()) {
-            relativeRoot(pigContext).create();
-        }
-        ElementDescriptor elem= 
-            pigContext.getDfs().asElement(relative.toString(), "tmp" + r.nextInt());
-        toDelete().push(elem);
-        return elem;
     }
 
     public static Path getTemporaryPath(PigContext pigContext) throws IOException {
-        ElementDescriptor relative = relativeRoot(pigContext);
-    
-        if (!relativeRoot(pigContext).exists()) {
-            relativeRoot(pigContext).create();
-        }
-        ElementDescriptor elem= 
-            pigContext.getDfs().asElement(relative.toString(), "tmp" + r.nextInt());
-        toDelete().push(elem);
-        return ((HPath)elem).getPath();
+        return getTemporaryPath(pigContext, "");
     }
-    
+
+    public static Path getTemporaryPath(PigContext pigContext, String suffix) throws IOException {
+      ElementDescriptor relative = relativeRoot(pigContext);
+
+      if (!relativeRoot(pigContext).exists()) {
+          relativeRoot(pigContext).create();
+      }
+      ElementDescriptor elem=
+          pigContext.getDfs().asElement(relative.toString(), "tmp" + r.nextInt() + suffix);
+      return ((HPath)elem).getPath();
+  }
+
     public static String hadoopify(String filename, PigContext pigContext) throws IOException {
         if (filename.startsWith(LOCAL_PREFIX)) {
             filename = filename.substring(LOCAL_PREFIX.length());
@@ -546,8 +497,8 @@ public class FileLocalizer {
             throw new FileNotFoundException(filename);
         }
             
-        ElementDescriptor distribElem = 
-            getTemporaryPath(null, pigContext);
+        ElementDescriptor distribElem = pigContext.getDfs().asElement(
+                getTemporaryPath(pigContext).toString());
     
         int suffixStart = filename.lastIndexOf('.');
         if (suffixStart != -1) {
@@ -768,6 +719,9 @@ public class FileLocalizer {
                                             boolean multipleFiles) throws IOException {
 
         Path path = new Path(filePath);
+        if (path.getName().isEmpty()) {
+            return new FetchFileRet[0];
+        }
         URI uri = path.toUri();
         Configuration conf = new Configuration();
         ConfigurationUtil.mergeConf(conf, ConfigurationUtil.toConfiguration(properties));
@@ -821,5 +775,37 @@ public class FileLocalizer {
         }
 
         return fetchFiles;
+    }
+    
+    /**
+     * Ensures that the passed resource is available from the local file system, fetching
+     * it to a temporary directory.
+     * 
+     * @throws ResourceNotFoundException 
+     */
+    public static FetchFileRet fetchResource(String name) throws IOException, ResourceNotFoundException {
+      FetchFileRet localFileRet = null;
+      InputStream resourceStream = PigContext.getClassLoader().getResourceAsStream(name);
+      if (resourceStream != null) {        
+        File dest = new File(localTempDir, name);
+        dest.getParentFile().mkdirs();        
+        dest.deleteOnExit();
+                
+        OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(dest));
+        byte[] buffer = new byte[1024];
+        int len;
+        while ((len=resourceStream.read(buffer)) > 0) {
+          outputStream.write(buffer,0,len);
+        }
+        outputStream.close();
+        
+        localFileRet = new FetchFileRet(dest,false);
+      }
+      else
+      {
+        throw new ResourceNotFoundException(name);
+      }
+      
+      return localFileRet;
     }
 }

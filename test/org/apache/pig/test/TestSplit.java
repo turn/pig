@@ -49,7 +49,7 @@ public class TestSplit {
     @Test
     public void testSplit1() throws IOException {
         String query = 
-            "a = load '" + file.getAbsolutePath() + "' as (id:int);" + 
+            "a = load '" + Util.encodeEscape(file.getAbsolutePath()) + "' as (id:int);" + 
             "split a into b if id > 3, c if id < 3, d otherwise;"
             ;
 
@@ -63,7 +63,7 @@ public class TestSplit {
     @Test
     public void testSplit2() throws IOException {
         String query = 
-            "a = load '" + file.getAbsolutePath() + "' as (id:int);" + 
+            "a = load '" + Util.encodeEscape(file.getAbsolutePath()) + "' as (id:int);" + 
             "split a into b if id % 2 == 0, d otherwise;"
             ;
 
@@ -74,10 +74,31 @@ public class TestSplit {
         Util.checkQueryOutputsAfterSort(it, expectedRes);
     }
     
+    @Test
+    public void testSplitMacro() throws IOException {
+        String query =
+            "define split_into_two (A,key) returns B, C {" +
+            "    SPLIT $A INTO $B IF $key<4, $C OTHERWISE;" +
+            "};"  +
+            "a = load '" + Util.encodeEscape(file.getAbsolutePath()) + "' as (id:int);" +
+            "B, C = split_into_two(a, id);"
+            ;
+
+        Util.registerMultiLineQuery(pig, query);
+        Iterator<Tuple> it = pig.openIterator("B");
+
+        List<Tuple> expectedRes = Util.getTuplesFromConstantTupleStrings(new String[] { "(1)", "(2)", "(3)" });
+        Util.checkQueryOutputsAfterSort(it, expectedRes);
+
+        it = pig.openIterator("C");
+        expectedRes = Util.getTuplesFromConstantTupleStrings(new String[] { "(4)", "(5)", "(6)" });
+        Util.checkQueryOutputsAfterSort(it, expectedRes);
+    }
+
     @Test(expected=FrontendException.class)
     public void testSplitNondeterministic() throws IOException {
         String query = 
-            "a = load '" + file.getAbsolutePath() + "' as (id:int);" + 
+            "a = load '" + Util.encodeEscape(file.getAbsolutePath()) + "' as (id:int);" + 
             "split a into b if RANDOM() < 0.5, d otherwise;"
             ;
 

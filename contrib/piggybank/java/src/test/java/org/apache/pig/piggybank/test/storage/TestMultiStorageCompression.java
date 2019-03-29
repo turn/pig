@@ -26,6 +26,7 @@ import java.util.List;
 
 import junit.framework.TestCase;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.BZip2Codec;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionInputStream;
@@ -33,6 +34,7 @@ import org.apache.hadoop.io.compress.GzipCodec;
 import org.apache.pig.PigServer;
 import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.impl.logicalLayer.FrontendException;
+import org.apache.pig.test.Util;
 
 public class TestMultiStorageCompression extends TestCase {
    
@@ -107,6 +109,8 @@ public class TestMultiStorageCompression extends TestCase {
       for (int i = 0; i < indexFolders.size(); i++) {
 
          String indexFolder = indexFolders.get(i);
+         if (indexFolder.startsWith("._SUCCESS")||indexFolder.startsWith("_SUCCESS"))
+             continue;
          String topFolder = outputPath + File.separator + indexFolder;
          File indexFolderFile = new File(topFolder);
          filesToDelete.add(topFolder);
@@ -127,8 +131,10 @@ public class TestMultiStorageCompression extends TestCase {
             // Use the codec according to the test case
             if (type.equals("bz2"))
                codec = new BZip2Codec();
-            else if (type.equals("gz"))
+            else if (type.equals("gz")) {
                codec = new GzipCodec();
+               ((GzipCodec)codec).setConf(new Configuration());
+            }
 
             CompressionInputStream createInputStream = codec
                   .createInputStream(new FileInputStream(file));
@@ -142,7 +148,8 @@ public class TestMultiStorageCompression extends TestCase {
             // Assert for the number of fields and keys.
             String[] fields = sb.toString().split("\\t");
             assertEquals(3, fields.length);
-            assertEquals("f" + (i + 1), fields[0]);
+            String id = indexFolder.substring(1,2);
+            assertEquals("f" + id, fields[0]);
 
          }
 
@@ -157,18 +164,18 @@ public class TestMultiStorageCompression extends TestCase {
       PigServer pig = new PigServer(LOCAL);
       filename = filename.replace("\\", "\\\\");
       patternString = patternString.replace("\\", "\\\\");
-      String query = "A = LOAD 'file:" + filename
+      String query = "A = LOAD '" + Util.encodeEscape(filename)
             + "' USING PigStorage(',') as (a,b,c);";
 
-      String query2 = "STORE A INTO '" + outputPath
+      String query2 = "STORE A INTO '" + Util.encodeEscape(outputPath)
             + "' USING org.apache.pig.piggybank.storage.MultiStorage" + "('"
-            + outputPath + "','0', '" + compressionType + "', '\\t');";
+            + Util.encodeEscape(outputPath) + "','0', '" + compressionType + "', '\\t');";
 
       // Run Pig
+      pig.setBatchOn();
       pig.registerQuery(query);
       pig.registerQuery(query2);
 
-      pig.setBatchOn();
       pig.executeBatch();
    }
   

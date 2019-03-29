@@ -137,7 +137,7 @@ public class POStore extends PhysicalOperator {
     }
     
     @Override
-    public Result getNext(Tuple t) throws ExecException {
+    public Result getNextTuple() throws ExecException {
         Result res = processInput();
         try {
             switch (res.returnStatus) {
@@ -196,6 +196,7 @@ public class POStore extends PhysicalOperator {
 
     public void setSFile(FileSpec sFile) {
         this.sFile = sFile;
+        storer = null;
     }
 
     public void setInputSpec(FileSpec lFile) {
@@ -292,5 +293,9 @@ public class POStore extends PhysicalOperator {
 
     public boolean disableCounter() {
         return disableCounter;
+    }
+
+    public void setStoreFunc(StoreFuncInterface storeFunc) {
+        this.storer = storeFunc;
     }
 }

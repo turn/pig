@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.apache.hadoop.util.Shell;
 import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.impl.PigContext;
 import org.apache.pig.tools.pigstats.PigStats;
@@ -43,15 +44,17 @@ import org.apache.pig.tools.pigstats.PigStats;
  * Base class for various scripting implementations
  */
 public abstract class ScriptEngine {
-    
+
     public static enum SupportedScriptLang {
 
         // possibly jruby in the future
-        //jruby(new String[]{}, new String[]{}, "org.apache.pig.scripting.jruby.JrubyScriptEngine"),
-        
-        jython(new String[]{"python", "jython"}, new String[]{"py"}, "org.apache.pig.scripting.jython.JythonScriptEngine"), 
-        javascript(new String[]{}, new String[]{"js"}, "org.apache.pig.scripting.js.JsScriptEngine");
-        
+        jruby(new String[]{"ruby", "jruby"}, new String[]{"rb"}, "org.apache.pig.scripting.jruby.JrubyScriptEngine"),
+        jython(new String[]{"python", "jython"}, new String[]{"py"}, "org.apache.pig.scripting.jython.JythonScriptEngine"),
+        javascript(new String[]{}, new String[]{"js"}, "org.apache.pig.scripting.js.JsScriptEngine"),
+        groovy(new String[]{}, new String[]{"groovy"}, "org.apache.pig.scripting.groovy.GroovyScriptEngine"),
+        streaming_python(new String[]{"streaming_python"}, new String[]{}, "org.apache.pig.scripting.streaming.python.PythonScriptEngine");
+
+
         private static Set<String> supportedScriptLangs;
         static {
             supportedScriptLangs = new HashSet<String>();
@@ -122,7 +125,8 @@ public abstract class ScriptEngine {
      * @return a stream (it is the responsibility of the caller to close it)
      * @throws IllegalStateException if we could not open a stream
      */
-    protected static InputStream getScriptAsStream(String scriptPath) {
+    public static InputStream getScriptAsStream(String scriptPath) {
+    //protected static InputStream getScriptAsStream(String scriptPath) {
         InputStream is = null;
         File file = new File(scriptPath);
         if (file.exists()) {
@@ -132,10 +136,26 @@ public abstract class ScriptEngine {
                 throw new IllegalStateException("could not find existing file "+scriptPath, e);
             }
         } else {
-            if (file.isAbsolute()) {
-                is = ScriptEngine.class.getResourceAsStream(scriptPath);
-            } else {
-                is = ScriptEngine.class.getResourceAsStream("/" + scriptPath);
+            if (Shell.WINDOWS && scriptPath.charAt(1)==':') {
+                scriptPath = scriptPath.charAt(0) + scriptPath.substring(2);
+            }
+            // Try system, current and context classloader.
+            is = ScriptEngine.class.getResourceAsStream(scriptPath);
+            if (is == null) {
+                is = getResourceUsingClassLoader(scriptPath, ScriptEngine.class.getClassLoader());
+            }
+            if (is == null) {
+                is = getResourceUsingClassLoader(scriptPath, Thread.currentThread().getContextClassLoader());
+            }
+            if (is == null && !file.isAbsolute()) {
+                String path = "/" + scriptPath;
+                is = ScriptEngine.class.getResourceAsStream(path);
+                if (is == null) {
+                    is = getResourceUsingClassLoader(path, ScriptEngine.class.getClassLoader());
+                }
+                if (is == null) {
+                    is = getResourceUsingClassLoader(path, Thread.currentThread().getContextClassLoader());
+                }
             }
         }
         
@@ -147,6 +167,13 @@ public abstract class ScriptEngine {
         }      
         return is;
     }
+    
+    private static InputStream getResourceUsingClassLoader(String fullFilename, ClassLoader loader) {
+        if (loader != null) {
+            return loader.getResourceAsStream(fullFilename);
+        }
+        return null;
+    } 
     
     public static final String NAMESPACE_SEPARATOR = ".";
        

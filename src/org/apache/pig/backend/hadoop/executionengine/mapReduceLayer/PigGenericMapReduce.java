@@ -18,25 +18,20 @@
 package org.apache.pig.backend.hadoop.executionengine.mapReduceLayer;
 
 import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Collections;
-import java.util.Comparator;
+
+import org.joda.time.DateTimeZone;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.io.RawComparator;
-import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapred.jobcontrol.Job;
+import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.mapreduce.TaskAttemptID;
-import org.apache.hadoop.mapreduce.Mapper.Context;
-
 import org.apache.pig.PigException;
 import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.backend.hadoop.HDataType;
@@ -50,9 +45,9 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOpe
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POStore;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.util.PlanHelper;
 import org.apache.pig.backend.hadoop.executionengine.util.MapRedUtil;
-import org.apache.pig.pen.FakeRawKeyValueIterator;
 import org.apache.pig.data.DataBag;
 import org.apache.pig.data.DataType;
+import org.apache.pig.data.SchemaTupleBackend;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.impl.PigContext;
 import org.apache.pig.impl.io.NullablePartitionWritable;
@@ -61,9 +56,9 @@ import org.apache.pig.impl.io.PigNullableWritable;
 import org.apache.pig.impl.plan.DependencyOrderWalker;
 import org.apache.pig.impl.plan.VisitorException;
 import org.apache.pig.impl.util.ObjectSerializer;
+import org.apache.pig.impl.util.Pair;
 import org.apache.pig.impl.util.SpillableMemoryManager;
 import org.apache.pig.impl.util.UDFContext;
-import org.apache.pig.impl.util.Pair;
 import org.apache.pig.tools.pigstats.PigStatusReporter;
 
 /**
@@ -105,7 +100,6 @@ public class PigGenericMapReduce {
     public static Configuration sJobConf = null;
     
     public static final ThreadLocal<Configuration> sJobConfInternal = new ThreadLocal<Configuration>();
-    private final static Tuple DUMMYTUPLE = null;
     
     public static class Map extends PigMapBase {
 
@@ -214,7 +208,7 @@ public class PigGenericMapReduce {
                 throws IOException, InterruptedException {
             
             while(true){
-                Result res = leaf.getNext(DUMMYTUPLE);
+                Result res = leaf.getNextTuple();
                 
                 if(res.returnStatus==POStatus.STATUS_OK){
                     // For POPartitionRearrange, the result is a bag. 
@@ -320,10 +314,13 @@ public class PigGenericMapReduce {
                 PigContext.setPackageImportList((ArrayList<String>)ObjectSerializer.deserialize(jConf.get("udf.import.list")));
                 pigContext = (PigContext)ObjectSerializer.deserialize(jConf.get("pig.pigContext"));
                 
+                // This attempts to fetch all of the generated code from the distributed cache, and resolve it
+                SchemaTupleBackend.initialize(jConf, pigContext);
+
                 if (rp == null)
                     rp = (PhysicalPlan) ObjectSerializer.deserialize(jConf
                             .get("pig.reducePlan"));
-                stores = PlanHelper.getStores(rp);
+                stores = PlanHelper.getPhysicalOperators(rp, POStore.class);
 
                 if (!inIllustrator)
                     pack = (POPackage)ObjectSerializer.deserialize(jConf.get("pig.reduce.package"));
@@ -347,6 +344,13 @@ public class PigGenericMapReduce {
             } catch (IOException ioe) {
                 String msg = "Problem while configuring reduce plan.";
                 throw new RuntimeException(msg, ioe);
+            }
+            log.info("Aliases being processed per job phase (AliasName[line,offset]): " + jConf.get("pig.alias.location"));
+            
+            String dtzStr = PigMapReduce.sJobConfInternal.get().get("pig.datetime.default.tz");
+            if (dtzStr != null && dtzStr.length() > 0) {
+                // ensure that the internal timezone is uniformly in UTC offset style
+                DateTimeZone.setDefault(DateTimeZone.forOffsetMillis(DateTimeZone.forID(dtzStr).getOffset(null)));
             }
         }
         
@@ -414,7 +418,7 @@ public class PigGenericMapReduce {
         public boolean processOnePackageOutput(Context oc) 
                 throws IOException, InterruptedException {
 
-            Result res = pack.getNext(DUMMYTUPLE);
+            Result res = pack.getNextTuple();
             if(res.returnStatus==POStatus.STATUS_OK){
                 Tuple packRes = (Tuple)res.result;
                 
@@ -457,7 +461,7 @@ public class PigGenericMapReduce {
             
             while(true)
             {
-                Result redRes = leaf.getNext(DUMMYTUPLE);
+                Result redRes = leaf.getNextTuple();
                 if(redRes.returnStatus==POStatus.STATUS_OK){
                     try{
                         outputCollector.write(null, (Tuple)redRes.result);
@@ -634,7 +638,7 @@ public class PigGenericMapReduce {
             
             pack.attachInput(key, tupIter.iterator());
             
-            Result res = pack.getNext(DUMMYTUPLE);
+            Result res = pack.getNextTuple();
             if(res.returnStatus==POStatus.STATUS_OK){
                 Tuple packRes = (Tuple)res.result;
                 

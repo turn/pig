@@ -17,44 +17,42 @@
  */
 package org.apache.pig.newplan.logical.relational;
 
-//import org.apache.commons.logging.Log;
-//import org.apache.commons.logging.LogFactory;
-import org.apache.pig.FuncSpec;
 import org.apache.pig.SortInfo;
 import org.apache.pig.StoreFuncInterface;
-import org.apache.pig.impl.PigContext;
 import org.apache.pig.impl.io.FileSpec;
 import org.apache.pig.impl.logicalLayer.FrontendException;
 import org.apache.pig.newplan.Operator;
 import org.apache.pig.newplan.PlanVisitor;
 
 public class LOStore extends LogicalRelationalOperator {
-    private static final long serialVersionUID = 2L;
 
-    private FileSpec output;
-    
- // If we know how to reload the store, here's how. The lFile
+    static final long serialVersionUID = 5555416258751933145L;
+
+    private final FileSpec output;
+
+    // If we know how to reload the store, here's how. The lFile
     // FileSpec is set in PigServer.postProcess. It can be used to
     // reload this store, if the optimizer has the need.
     private FileSpec mInputSpec;
-    private String signature;
+    private final String signature;
     private boolean isTmpStore;
     private SortInfo sortInfo;
-    transient private StoreFuncInterface storeFunc;
-    
-    //private static Log log = LogFactory.getLog(LOStore.class);
-    
-    public LOStore(LogicalPlan plan) {
-        super("LOStore", plan);
-    }
-    
-    public LOStore(LogicalPlan plan, FileSpec outputFileSpec) {
-        super("LOStore", plan);
+    private transient final StoreFuncInterface storeFunc;
+    private boolean disambiguationEnabled = true;
 
-        output = outputFileSpec;
-        storeFunc = (StoreFuncInterface) PigContext.instantiateFuncFromSpec(outputFileSpec.getFuncSpec()); 
+    public LOStore(LogicalPlan plan, FileSpec outputFileSpec, StoreFuncInterface storeFunc, String signature) {
+        super("LOStore", plan);
+        this.output = outputFileSpec;
+        this.storeFunc = storeFunc;
+        this.signature = signature;
     }
-    
+
+    public LOStore(LogicalPlan plan, FileSpec outputFileSpec, StoreFuncInterface storeFunc, String signature,
+                   boolean disambiguationEnabled) {
+        this(plan, outputFileSpec, storeFunc, signature);
+        this.disambiguationEnabled = disambiguationEnabled;
+    }
+
     public FileSpec getOutputSpec() {
         return output;
     }
@@ -66,6 +64,32 @@ public class LOStore extends LogicalRelationalOperator {
     @Override
     public LogicalSchema getSchema() throws FrontendException {
         schema = ((LogicalRelationalOperator)plan.getPredecessors(this).get(0)).getSchema();
+
+        if (!disambiguationEnabled) {
+            //If requested try and remove parent alias substring including colon(s)
+            removeDisambiguation(schema);
+        }
+
+        return schema;
+    }
+
+    /**
+     * Removes schema disambiguation parts (parent alias and :) from field aliases
+     * @param schema
+     * @return
+     */
+    private static LogicalSchema removeDisambiguation(LogicalSchema schema) {
+        if (schema != null && schema.getFields() != null) {
+            for (LogicalSchema.LogicalFieldSchema field : schema.getFields()) {
+                if (field.schema != null) {
+                    removeDisambiguation(field.schema);
+                }
+                if (field.alias == null || !field.alias.contains(":")) {
+                    continue;
+                }
+                field.alias = field.alias.substring(field.alias.lastIndexOf(":") + 1);
+            }
+        }
         return schema;
     }
 
@@ -123,23 +147,9 @@ public class LOStore extends LogicalRelationalOperator {
     public String getSignature() {
         return signature;
     }
-    
-    public void setSignature(String sig) {
-        signature = sig;
-        storeFunc.setStoreFuncUDFContextSignature(signature);
+
+    public FileSpec getFileSpec() {
+        return output;
     }
 
-    public static String constructSignature(String alias, String filename, FuncSpec funcSpec) {
-        return alias+"_"+filename+"_"+funcSpec.toString();
-    }
-
-	public FileSpec getFileSpec() {
-		return output;
-	}
-    
-	@Override
-	public void setAlias(String alias) {
-        this.alias = alias;
-        setSignature(constructSignature(alias, output.getFileName(), output.getFuncSpec()));
-    }
 }

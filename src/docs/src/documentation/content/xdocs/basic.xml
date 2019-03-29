@@ -102,7 +102,7 @@
                <p>In general, uppercase type indicates elements the system supplies.</p>
                <p>In general, lowercase type indicates elements that you supply.</p>
                <p>(These conventions are not strictly adherered to in all examples.)</p>
-               <p>See <a href="#Case-Sensitivity">Case Sensitivity</a></p>
+               <p>See <a href="#case-sensitivity">Case Sensitivity</a></p>
             </td>
             <td>
                <p>Pig Latin statement:</p>
@@ -132,22 +132,22 @@
    <table>
          <tr>
             <td> <p>-- A </p> </td>
-            <td> <p>and, any, all, arrange, as, asc, AVG</p> </td>
+            <td> <p>assert, and, any, all, arrange, as, asc, AVG</p> </td>
          </tr>      
       
          <tr>
             <td> <p>-- B </p> </td>
-            <td> <p>bag, BinStorage, by, bytearray </p> </td>
+            <td> <p>bag, BinStorage, by, bytearray, BIGINTEGER, BIGDECIMAL</p> </td>
          </tr>   
 
          <tr>
             <td> <p>-- C </p> </td>
-            <td> <p>cache, cat, cd, chararray, cogroup, CONCAT, copyFromLocal, copyToLocal, COUNT, cp, cross</p> </td>
+            <td> <p>cache, CASE, cat, cd, chararray, cogroup, CONCAT, copyFromLocal, copyToLocal, COUNT, cp, cross</p> </td>
          </tr>
          
          <tr>
             <td> <p>-- D </p> </td>
-            <td> <p>%declare, %default, define, desc, describe, DIFF, distinct, double, du, dump</p> </td>
+            <td> <p>datetime, %declare, %default, define, dense, desc, describe, DIFF, distinct, double, du, dump</p> </td>
          </tr>  
          
          <tr>
@@ -217,7 +217,7 @@
          
          <tr>
             <td> <p>-- R </p> </td>
-            <td> <p>register, right, rm, rmf, run</p> </td>
+            <td> <p>register, returns, right, rm, rmf, rollup, run</p> </td>
          </tr>  
 
          <tr>
@@ -237,7 +237,7 @@
 
          <tr>
             <td> <p>-- V, W, X, Y, Z </p> </td>
-            <td> <p> </p> </td>
+            <td> <p>void</p> </td>
          </tr>  
             
    </table>
@@ -249,7 +249,7 @@
    <section id="case-sensitivity">
    <title>Case Sensitivity</title>
    <p>The names (aliases) of relations and fields are case sensitive. The names of Pig Latin functions are case sensitive. 
-   The names of parameters (see <a href="cont.html#Parameter-Sub">Parameter Substitution</a>) and all other Pig Latin keywords (see <a href="#Reserved-Keywords">Reserved Keywords</a>) are case insensitive.</p>
+   The names of parameters (see <a href="cont.html#Parameter-Sub">Parameter Substitution</a>) and all other Pig Latin keywords (see <a href="#reserved-keywords">Reserved Keywords</a>) are case insensitive.</p>
    <p>In the example below, note the following:</p>
    <ul>
       <li>
@@ -342,6 +342,13 @@ DUMP A;
 (Bill,20,3.9F)
 (Joe,18,3.8F)
 </source>
+
+  <p>You an assign an alias to another alias. The new alias can be used in the place of the original alias to refer the original relation. </p>
+  <source>
+  A = LOAD 'student' USING PigStorage() AS (name:chararray, age:int, gpa:float);
+  B = A;
+  DUMP B;
+  </source>
 </section>
    
    
@@ -590,6 +597,39 @@ DUMP X;
             </td>
             <td>
                <p>true/false (case insensitive)</p>
+            </td>
+         </tr>
+         <tr>
+            <td>
+               <p>datetime</p>
+            </td>
+            <td>
+               <p>datetime</p>
+            </td>
+            <td>
+               <p>1970-01-01T00:00:00.000+00:00</p>
+            </td>
+         </tr>
+         <tr>
+            <td>
+               <p>biginteger</p>
+            </td>
+            <td>
+               <p>Java BigInteger</p>
+            </td>
+            <td>
+               <p>200000000000</p>
+            </td>
+         </tr>
+         <tr>
+            <td>
+               <p>bigdecimal</p>
+            </td>
+            <td>
+               <p>Java BigDecimal</p>
+            </td>
+            <td>
+               <p>33.456783321323441233442</p>
             </td>
          </tr>
          <tr>
@@ -935,6 +975,7 @@ DUMP X;
                <p> + , -, *, /</p>
                <p>% modulo</p>
                <p>? : bincond</p>
+               <p>CASE : case</p>
             </td>
             <td>
                <p>If either subexpression is null, the resulting expression is null.</p>
@@ -1148,7 +1189,7 @@ dump X;
 (,{(sam,,3.0),(bob,,3.5)})
    </source>
    
-<p>When using the GROUP (COGROUP) operator with multiple relations, records with a null group key are considered different and are grouped separately. In the example below note that there are two tuples in the output corresponding to the null group key: one that contains tuples from relation A (but not relation B) and one that contains tuples from relation B (but not relation A).</p>
+<p>When using the GROUP (COGROUP) operator with multiple relations, records with a null group key from different relations are considered different and are grouped separately. In the example below note that there are two tuples in the output corresponding to the null group key: one that contains tuples from relation A (but not relation B) and one that contains tuples from relation B (but not relation A).</p>
    
 <source>
 A = load 'student' as (name:chararray, age:int, gpa:float);
@@ -1349,6 +1390,10 @@ dump X;
       <li>
          <p>Any numeric constant with decimal point (for example, 1.5) and/or exponent (for example, 5e+1) is treated as double unless it ends with f or F in which case it is assigned type float (for example,  1.5f). </p>
       </li>
+      <li>
+         <p>There is no native constant type for datetime field. You can use a ToDate udf with chararray constant as argument to generate a datetime value. </p>
+      </li>
+
    </ul>
    <p></p>
    <p>The data type definitions for tuples, bags, and maps apply to constants:</p>
@@ -1360,7 +1405,7 @@ dump X;
          <p>A bag is a collection of tuples</p>
       </li>
       <li>
-         <p>A map key must be a scalar; a map value can be any data type</p>
+         <p>A map key must be a chararray; a map value can be any data type</p>
       </li>
    </ul>
    <p></p>
@@ -1464,11 +1509,11 @@ C = FOREACH G GENERATE COUNT(*)
 <p>Project-range can be used in all cases where the <a href="#sexp">star expression</a> ( * ) is allowed.</p>
 
 <p>Project-range can be used in the following statements:
-<a href="#FOREACH">FOREACH</a>, 
-<a href="#JOIN+%28inner%29">JOIN</a>,  
-<a href="#GROUP">GROUP</a>, 
-<a href="#COGROUP">COGROUP</a>, and  
-<a href="#ORDER+BY">ORDER BY</a> (also when ORDER BY is used within a nested FOREACH block).</p>
+<a href="#foreach">FOREACH</a>,
+<a href="#join-inner">JOIN</a>,
+<a href="#group">GROUP</a>,
+<a href="#cogroup">COGROUP</a>, and
+<a href="#order-by">ORDER BY</a> (also when ORDER BY is used within a nested FOREACH block).</p>
 
 <p>A few examples are shown here:</p>
 <source>
@@ -1535,15 +1580,15 @@ SORT = order IN by $2 .. $3, $6 ..;
    
    
     <!-- ================================================== --> 
-   <section id="Schemas">
+   <section id="schemas">
    <title>Schemas</title>
 
    <p>Schemas enable you to assign names to fields and declare types for fields. Schemas are optional but we encourage you to use them whenever possible; type declarations result in better parse-time error checking and more efficient code execution.</p>  
    
    <p>Schemas for <a href="#schema-simple">simple types</a> and <a href="#schema-complex">complex types</a> can be used anywhere a schema definition is appropriate.</p>   
    
-   <p>Schemas are defined with the <a href="#LOAD">LOAD</a>, <a href="#STREAM">STREAM</a>, and <a href="#FOREACH">FOREACH</a> operators using the AS clause. If you define a schema using the LOAD operator, then it is the load function that enforces the schema 
-   (see <a href="#LOAD">LOAD</a> and <a href="udf.html">User Defined Functions</a> for more information).</p>
+   <p>Schemas are defined with the <a href="#load">LOAD</a>, <a href="#stream">STREAM</a>, and <a href="#foreach">FOREACH</a> operators using the AS clause. If you define a schema using the LOAD operator, then it is the load function that enforces the schema
+   (see <a href="#load">LOAD</a> and <a href="udf.html">User Defined Functions</a> for more information).</p>
 
    <p></p>
    <p><strong>Known Schema Handling</strong></p>
@@ -1579,7 +1624,7 @@ a: Schema for a unknown
    <p></p>
    <p><strong>How Pig Handles Schema</strong></p>
    
-   <p>As shown above, with a few exceptions Pig can infer the schema of a relationship up front. You can examine the schema of particular relation using <a href="test.html#DESCRIBE">DESCRIBE</a>. Pig enforces this computed schema during the actual execution by casting the input data to the expected data type. If the process is successful the results are returned to the user; otherwise, a warning is generated for each record that failed to convert.  Note that Pig does not know the actual types of the fields in the input data prior to the execution; rather, Pig determines the data types and performs the right conversions on the fly.</p>
+   <p>As shown above, with a few exceptions Pig can infer the schema of a relationship up front. You can examine the schema of particular relation using <a href="test.html#describe">DESCRIBE</a>. Pig enforces this computed schema during the actual execution by casting the input data to the expected data type. If the process is successful the results are returned to the user; otherwise, a warning is generated for each record that failed to convert.  Note that Pig does not know the actual types of the fields in the input data prior to the execution; rather, Pig determines the data types and performs the right conversions on the fly.</p>
   
 <p>Having a deterministic schema is very powerful; however, sometimes it comes at the cost of performance. Consider the following example:</p>  
   
@@ -1590,7 +1635,7 @@ B = foreach A generate x+y;
 
  <p>If you do <a href="test.html#DESCRIBE">DESCRIBE</a> on B, you will see a single column of type double. This is because Pig makes the safest choice and uses the largest numeric type when the schema is not know. In practice, the input data could contain integer values; however, Pig will cast the data to double and make sure that a double result is returned.</p>
 
- <p>If the schema of a relationship can’t be inferred, Pig will just use the runtime data as is and propagate it through the pipeline.</p>
+ <p>If the schema of a relation can’t be inferred, Pig will just use the runtime data as is and propagate it through the pipeline.</p>
 
 
    <!-- ++++++++++++++++++++++++++++++++++ -->     
@@ -1624,7 +1669,7 @@ X = FOREACH A GENERATE f1 as user, f2 as age, f3 as gpa;
      <!-- ++++++++++++++++++++++++++++++++++ -->  
    <section  id="schema-simple">
    <title>Schemas for Simple Data Types</title>
-   <p>Simple data types include int, long, float, double, chararray, bytearray, and boolean.</p>
+   <p>Simple data types include int, long, float, double, chararray, bytearray, boolean, datetime, biginteger and bigdecimal.</p>
    
    <section>
    <title>Syntax</title>
@@ -1928,7 +1973,7 @@ DUMP A;
          <tr>
             <td><p>type</p></td>
             <td><p>(Optional) The datatype (all types allowed, bytearray is the default).</p>
-            <p>The type applies to the map value only; the map key is always type chararray (see <a href="#Map">Map</a>).</p>
+            <p>The type applies to the map value only; the map key is always type chararray (see <a href="#map">Map</a>).</p>
             <p>If a type is declared then ALL values in the map must be of this type.</p>
             </td>
          </tr>
@@ -1984,8 +2029,20 @@ A = LOAD 'mydata' AS (T1:tuple(f1:int, f2:int), B:bag{T2:tuple(t1:float,t2:float
 
 A = LOAD 'mydata' AS (T1:(f1:int, f2:int), B:{T2:(t1:float,t2:float)}, M:[] );
 </source>
-</section></section></section>
+</section>
+   <section id="previous-relation-shortcut">
+     <title>Previous Relation Shortcut</title>
+     <p>There is a shortcut form to reference the relation on the previous line of a pig script or grunt session:</p>
+<source>
+a = load 'thing' as (x:int);
+b = foreach @ generate x;
+c = foreach @ generate x;
+d = foreach @ generate x;
+</source>
    </section>
+</section>
+</section>
+</section>
    
 <!-- =================================================================== -->    
 <!-- ARITHMETIC OPERATORS, ETC -->
@@ -2079,6 +2136,21 @@ A = LOAD 'mydata' AS (T1:(f1:int, f2:int), B:{T2:(t1:float,t2:float)}, M:[] );
                <p>Use expressions  only (relational operators are not allowed).</p>
             </td>
           </tr>
+         <tr>
+            <td>
+               <p>case</p>
+            </td>
+            <td>
+               <p>CASE WHEN THEN ELSE END</p>
+            </td>
+            <td>
+               <p>CASE expression [ WHEN value THEN value ]+ [ ELSE value ]? END</p>
+               <p>CASE [ WHEN condition THEN value ]+ [ ELSE value ]? END</p>
+               <p>Case operator is equivalent to nested bincond operators.</p> 
+               <p>The schemas for all the outputs of the when/else branches should match.</p>
+               <p>Use expressions only (relational operators are not allowed).</p>
+            </td>
+          </tr>
    </table>
 
    <section>
@@ -2111,6 +2183,34 @@ DUMP X;
 (1,1L)
 (3,2L)
 (6,3L)
+</source>
+
+   <p>In this example the case operator is used with field f2. The expression is "f2 % 2"; if the expression is equal to 0, return 'even'; if the expression is equal to 1, return 'odd'.</p>
+<source>
+X = FOREACH A GENERATE f2, (
+  CASE f2 % 2
+    WHEN 0 THEN 'even'
+    WHEN 1 THEN 'odd'
+  END
+);
+DUMP X;
+(1,odd)
+(3,odd)
+(6,even)
+</source>
+
+   <p>This can be also written as follows:</p>
+<source>
+X = FOREACH A GENERATE f2, (
+  CASE
+    WHEN f2 % 2 == 0 THEN 'even'
+    WHEN f2 % 2 == 1 THEN 'odd'
+  END
+);
+DUMP X;
+(1,odd)
+(3,odd)
+(6,even)
 </source>
    </section>
    
@@ -2872,6 +2972,17 @@ DUMP X;
          </tr>
          <tr>
             <td>
+               <p>IN</p>
+            </td>
+            <td>
+               <p>in</p>
+            </td>
+            <td>
+               <p>IN operator is equivalent to nested OR operators.</p>
+            </td>
+         </tr>
+         <tr>
+            <td>
                <p>NOT</p>
             </td>
             <td>
@@ -2887,7 +2998,7 @@ DUMP X;
    <section>
    <title>Example</title>
 <source>
-X = FILTER A BY (f1==8) OR (NOT (f2+f3 > f1));
+X = FILTER A BY (f1==8) OR (NOT (f2+f3 > f1)) OR (f1 IN (9, 10, 11));
 </source>
    
    </section></section></section>   
@@ -3344,7 +3455,7 @@ B = FOREACH A GENERATE $0 + 1, $1 + 1.0
    </ul>
    <ul>
       <li>
-         <p>When two bytearrays are used in arithmetic expressions or with built in aggregate functions (such as SUM) they are implicitly cast to double. If the underlying data is really int or long, you’ll get better performance by declaring the type or explicitly casting the data.</p>
+         <p>When two bytearrays are used in arithmetic expressions or a bytearray expression is used with built in aggregate functions (such as SUM) they are implicitly cast to double. If the underlying data is really int or long, you’ll get better performance by declaring the type or explicitly casting the data.</p>
       </li>
       <li>
          <p>Downcasts may cause loss of data. For example casting from long to int may drop bits.</p>
@@ -3492,7 +3603,7 @@ If the relation contains more than one tuple, however, a runtime error is genera
  
 <p>The primary use case for casting relations to scalars is the ability to use the values of global aggregates in follow up computations. </p> 
  
-<p>In this example the percentage of clicks belonging to a particular user are computed. For the FOREACH statement, an explicit cast if used. If the SUM is not given a name, a position can be used as well (userid, clicks/(double)C.$0). </p>
+<p>In this example the percentage of clicks belonging to a particular user are computed. For the FOREACH statement, an explicit cast is used. If the SUM is not given a name, a position can be used as well (userid, clicks/(double)C.$0). </p>
 
 <source>
 A = load 'mydata' as (userid, clicks); 
@@ -3608,7 +3719,7 @@ dump E;
             <td>
             <p>Takes an expression on the left and a string constant on the right.</p>
             <p><em>expression</em> matches <em>string-constant</em></p>
-            <p>Use the Java <a href="http://java.sun.com/j2se/1.5.0/docs/api/java/util/regex/Pattern.html">format</a> for regular expressions.</p>
+            <p>Use the Java <a href="http://docs.oracle.com/javase/1.5.0/docs/api/java/util/regex/Pattern.html">format</a> for regular expressions.</p>
 
             </td>
          </tr>
@@ -3673,10 +3784,28 @@ X = FILTER A BY (f1 matches '.*apache.*');
             <td>
                <p>boolean </p>
             </td>
+            <td>
+               <p>datetime </p>
+            </td>
+            <td>
+               <p>biginteger </p>
+            </td>
+            <td>
+               <p>bigdecimal </p>
+            </td>
          </tr>
          <tr>
             <td>
                <p>bag </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
             </td>
             <td>
                <p>error </p>
@@ -3744,6 +3873,15 @@ X = FILTER A BY (f1 matches '.*apache.*');
             <td>
                <p>error </p>
             </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
          </tr>
          <tr>
             <td>
@@ -3758,6 +3896,15 @@ X = FILTER A BY (f1 matches '.*apache.*');
             <td>
                <p>boolean </p>
                <p>(see Note 2)</p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
             </td>
             <td>
                <p>error </p>
@@ -3815,6 +3962,15 @@ X = FILTER A BY (f1 matches '.*apache.*');
             <td>
                <p>error </p>
             </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
          </tr>
          <tr>
             <td>
@@ -3848,6 +4004,15 @@ X = FILTER A BY (f1 matches '.*apache.*');
                <p>cast as boolean </p>
             </td>
              <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
                <p>error </p>
             </td>
          </tr>
@@ -3885,6 +4050,15 @@ X = FILTER A BY (f1 matches '.*apache.*');
              <td>
                <p>error </p>
             </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
          </tr>
          <tr>
             <td>
@@ -3916,6 +4090,15 @@ X = FILTER A BY (f1 matches '.*apache.*');
             </td>
             <td>
                <p>cast as boolean  </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
             </td>
             <td>
                <p>error </p>
@@ -3955,6 +4138,15 @@ X = FILTER A BY (f1 matches '.*apache.*');
             <td>
                <p>error </p>
             </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
          </tr>
          <tr>
             <td>
@@ -3990,8 +4182,17 @@ X = FILTER A BY (f1 matches '.*apache.*');
             <td>
                <p>error </p>
             </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
          </tr>
-                  <tr>
+         <tr>
             <td>
                <p>boolean </p>
             </td>
@@ -4024,11 +4225,152 @@ X = FILTER A BY (f1 matches '.*apache.*');
             </td>
             <td>
                <p>boolean </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+         </tr>
+         <tr>
+            <td>
+               <p>datetime </p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p>boolean</p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+         </tr>
+         <tr>
+            <td>
+               <p>biginteger </p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p>boolean</p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+         </tr>
+         <tr>
+            <td>
+               <p>bigdecimal </p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p>boolean</p>
             </td>
          </tr>
    </table>
-   <p>Note 1: boolean (Tuple A is equal to tuple B if they have the same size s, and for all 0 &lt;= i &lt; s A[i] = = B[i])</p>
-   <p>Note 2: boolean (Map A is equal to map B if A and B have the same number of entries, and for every key k1 in A with a value of v1, there is a key k2 in B with a value of v2, such that k1 = = k2 and v1 = = v2)</p>
+   <p>Note 1: boolean (Tuple A is equal to tuple B if they have the same size s, and for all 0 &lt;= i &lt; s A[i] == B[i])</p>
+   <p>Note 2: boolean (Map A is equal to map B if A and B have the same number of entries, and for every key k1 in A with a value of v1, there is a key k2 in B with a value of v2, such that k1 == k2 and v1 == v2)</p>
 </section>
 
    <section id="types-table-not-equal">
@@ -4069,6 +4411,15 @@ X = FILTER A BY (f1 matches '.*apache.*');
             <td>
                <p>boolean </p>
             </td>
+            <td>
+               <p>datetime </p>
+            </td>
+            <td>
+               <p>biginteger </p>
+            </td>
+            <td>
+               <p>bigdecimal </p>
+            </td>
          </tr>
          <tr>
             <td>
@@ -4101,7 +4452,16 @@ X = FILTER A BY (f1 matches '.*apache.*');
             <td>
                <p>error </p>
             </td>
-          <td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
                <p>error </p>
             </td>
          </tr>
@@ -4111,6 +4471,15 @@ X = FILTER A BY (f1 matches '.*apache.*');
             </td>
             <td>
                <p></p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
             </td>
             <td>
                <p>error </p>
@@ -4149,6 +4518,15 @@ X = FILTER A BY (f1 matches '.*apache.*');
             </td>
             <td>
                <p></p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
             </td>
             <td>
                <p>error </p>
@@ -4209,6 +4587,15 @@ X = FILTER A BY (f1 matches '.*apache.*');
             <td>
                <p>error </p>
             </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
          </tr>
          <tr>
             <td>
@@ -4240,6 +4627,15 @@ X = FILTER A BY (f1 matches '.*apache.*');
             </td>
             <td>
                <p>boolean (bytearray cast as long) </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
             </td>
             <td>
                <p>error </p>
@@ -4279,6 +4675,15 @@ X = FILTER A BY (f1 matches '.*apache.*');
             <td>
                <p>error </p>
             </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
          </tr>
          <tr>
             <td>
@@ -4310,6 +4715,15 @@ X = FILTER A BY (f1 matches '.*apache.*');
             </td>
             <td>
                <p>boolean (bytearray cast as double) </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
             </td>
             <td>
                <p>error </p>
@@ -4349,6 +4763,15 @@ X = FILTER A BY (f1 matches '.*apache.*');
             <td>
                <p>error </p>
             </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
          </tr>
          <tr>
             <td>
@@ -4380,6 +4803,15 @@ X = FILTER A BY (f1 matches '.*apache.*');
             </td>
             <td>
                <p>boolean </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
             </td>
             <td>
                <p>error </p>
@@ -4417,7 +4849,148 @@ X = FILTER A BY (f1 matches '.*apache.*');
                <p></p>
             </td>
             <td>
-               <p>error</p>
+               <p>boolean </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+         </tr>
+         <tr>
+            <td>
+               <p>datetime</p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p>boolean </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+         </tr>
+         <tr>
+            <td>
+               <p>biginteger</p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p>boolean </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+         </tr>
+                  <tr>
+            <td>
+               <p>bigdecimal</p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p></p>
+            </td>
+            <td>
+               <p>boolean </p>
             </td>
          </tr>
    </table>
@@ -4660,7 +5233,7 @@ Output (results):
 <p><strong>Tuple Example</strong></p>   
 <p>Suppose we have relation A.</p>
 <source>
-LOAD 'data' as (f1:int, f2:tuple(t1:int,t2:int,t3:int));
+A = LOAD 'data' as (f1:int, f2:tuple(t1:int,t2:int,t3:int));
 
 DUMP A;
 (1,(1,2,3))
@@ -4805,7 +5378,9 @@ DUMP X;
 <section id="disambiguate">
 <title>Disambiguate Operator</title>
 
-<p>Use the disambiguate operator ( :: ) to identify field names after JOIN, COGROUP, CROSS, or FLATTEN operators.</p>
+<p>After JOIN, COGROUP, CROSS, or FLATTEN operations, the field names have the orginial alias and the disambiguate
+   operator ( :: ) prepended in the schema. The disambiguate operator is used to identify field names in case there
+   is a ambiguity.</p>
 
 <p>In this example, to disambiguate y,  use A::y or B::y.  In cases where there is no ambiguity, such as z, the :: is not necessary but is still supported.</p>
 
@@ -4813,15 +5388,21 @@ DUMP X;
 A = load 'data1' as (x, y);
 B = load 'data2' as (x, y, z);
 C = join A by x, B by x;
-D = foreach C generate y; -- which y?
+D = foreach C generate A::y, z; -- Cannot simply refer to y as it can refer to A::y or B::y
 </source>
+<p> In cases where the schema is stored as part of the StoreFunc like PigStorage, JsonStorage, AvroStorage or OrcStorage,
+   users generally have to use an extra FOREACH before STORE to rename the field names and remove the disambiguate
+   operator from the names. To automatically remove the disambiguate operator from the schema for the STORE operation,
+   the <i>pig.store.schema.disambiguate</i> Pig property can be set to "false". It is the responsibility of the user
+   to make sure that there is no conflict in the field names when using this setting.
+</p>
 </section>
 
     <!-- =================================================================== -->  
    <section  id="flatten">
    <title>Flatten Operator</title>
    <p>The FLATTEN operator looks like a UDF syntactically, but it is actually an operator that changes the structure of tuples 
-   and bags in a way that a UDF cannot. Flatten un-nests tuples as well as bags. The idea is the same, but the operation and 
+   and bags in a way that a UDF cannot. Flatten un-nests tuples as well as bags. The idea is the same, but the operation and
    result is different for each type of structure.</p>
 
    <p>For tuples, flatten substitutes the fields of a tuple in place of the tuple. For example, consider a relation that has a tuple 
@@ -4832,7 +5413,7 @@ D = foreach C generate y; -- which y?
    tuples (b,c) and (d,e). When we remove a level of nesting in a bag, sometimes we cause a cross product to happen. 
    For example, consider a relation that has a tuple of the form (a, {(b,c), (d,e)}), commonly produced by the GROUP operator. 
    If we apply the expression GENERATE $0, flatten($1) to this tuple, we will create new tuples: (a, b, c) and (a, d, e).</p>
-   
+
    <p>Also note that the flatten of empty bag will result in that row being discarded; no output is generated. 
    (See also <a href="perf.html#nulls">Drop Nulls Before a Join</a>.) </p>
    
@@ -4959,7 +5540,6 @@ A = LOAD 'data' as (x, y, z);
 
 B = FOREACH A GENERATE -x, y;
 </source>
-</section>
    
    </section>
    
@@ -5038,9 +5618,34 @@ B = FOREACH A GENERATE -x, y;
                <p>double (as double) </p>
             </td>
          </tr>
+         <tr>
+            <td>
+               <p>datetime </p>
+            </td>
+            <td>
+               <p>error </p>
+            </td>
+         </tr>
+         <tr>
+            <td>
+               <p>biginteger </p>
+            </td>
+            <td>
+               <p>biginteger </p>
+            </td>
+         </tr>
+         <tr>
+            <td>
+               <p>bigdecimal </p>
+            </td>
+            <td>
+               <p>bigdecimal </p>
+            </td>
+         </tr>
    </table>
    </section>
   
+</section>
 </section>   
 
 <!-- =================================================================== -->
@@ -5049,9 +5654,90 @@ B = FOREACH A GENERATE -x, y;
 <title>Relational Operators</title>
 
 <!-- =================================================================== -->
- <section id="COGROUP">
+   <section id="assert">
+   <title>ASSERT</title>
+   <p>Assert a condition on the data.</p>
+
+   <section>
+   <title>Syntax</title>
+   <table>
+       <tr>
+            <td>
+               <p>ASSERT alias BY expression [, message];</p>
+            </td>
+        </tr>
+   </table>
+   </section>
+
+   <section>
+   <title>Terms</title>
+   <table>
+      <tr>
+            <td>
+               <p>alias</p>
+            </td>
+            <td>
+               <p>The name of the relation.</p>
+            </td>
+         </tr>
+         <tr>
+            <td>
+               <p>BY</p>
+            </td>
+            <td>
+               <p>Required keyword.</p>
+            </td>
+         </tr>
+         <tr>
+            <td>
+               <p>expression</p>
+            </td>
+            <td>
+               <p>A boolean expression.</p>
+            </td>
+         </tr>
+         <tr>
+            <td>
+               <p>message</p>
+            </td>
+            <td>
+               <p>Error message when assertion fails.</p>
+            </td>
+         </tr>
+   </table>
+   </section>
+
+   <section>
+     <title>Usage</title>
+     <p>Use assert to ensure a condition is true on your data. Processing fails if any of the records voilate the condition.</p>
+   </section>
+
+   <section>
+   <title>Examples</title>
+   <p>Suppose we have relation A.</p>
+<source>
+A = LOAD 'data' AS (a0:int,a1:int,a2:int);
+
+DUMP A;
+(1,2,3)
+(4,2,1)
+(8,3,4)
+(4,3,3)
+(7,2,5)
+(8,4,3)
+</source>
+
+<p>Now, you can assert that a0 column in your data is >0, fail if otherwise</p>
+<source>
+ASSERT A by a0 > 0, 'a0 should be greater than 0';
+</source>
+
+</section></section>
+
+<!-- =================================================================== -->
+ <section id="cogroup">
 <title>COGROUP</title>
-   <p>See the <a href="#GROUP">GROUP</a> operator.</p>
+   <p>See the <a href="#group">GROUP</a> operator.</p>
 </section>
 
 <!-- =================================================================== -->
@@ -5147,6 +5833,192 @@ DUMP X;
    
    </section></section>
    
+
+<!-- =================================================================== -->
+   <section id="cube">
+      <title>CUBE</title>
+      <p>Performs cube/rollup operations.</p>
+
+      <section>
+         <title>Cube operation</title>
+         <p>Cube operation computes aggregates for all possbile combinations of specified group by dimensions. The number of group by combinations generated by cube for n dimensions will be 2^n.</p>
+      </section>
+
+      <section>
+         <title>Rollup operation</title>
+         <p>Rollup operations computes multiple levels of aggregates based on hierarchical ordering of specified group by dimensions. Rollup is useful when there is hierarchical ordering on the dimensions. The number of group by combinations generated by rollup for n dimensions will be n+1.</p>
+      </section>
+
+      <section>
+         <title>Syntax</title>
+            <table>
+               <tr>
+                  <td>
+                     <p>alias = CUBE alias BY { CUBE expression | ROLLUP expression }, [ CUBE expression | ROLLUP expression ] [PARALLEL n];</p>
+                  </td>
+               </tr>
+            </table>
+      </section>
+
+      <section>
+         <title>Terms</title>
+         <table>
+            <tr>
+               <td>
+                  <p>alias</p>
+               </td>
+               <td>
+                  <p>The name of the relation.</p>
+               </td>
+            </tr>
+
+            <tr>
+               <td>
+                  <p>CUBE</p>
+                  </td>
+                  <td>
+                   <p>Keyword</p>
+               </td>
+            </tr>
+
+            <tr>
+               <td>
+                  <p>BY</p>
+                  </td>
+                  <td>
+                   <p>Keyword</p>
+               </td>
+            </tr>
+
+            <tr>
+               <td>
+                  <p>expression</p>
+                  </td>
+                  <td>
+                   <p>Projections (dimensions) of the relation. Supports field, star and project-range expressions.</p>
+               </td>
+            </tr>
+
+            <tr>
+               <td>
+                  <p>ROLLUP</p>
+                  </td>
+                  <td>
+                   <p>Keyword</p>
+               </td>
+            </tr>
+
+            <tr>
+               <td>
+                  <p>PARALLEL n</p>
+               </td>
+               <td>
+                  <p>Increase the parallelism of a job by specifying the number of reduce tasks, n.</p>
+                  <p>For more information, see <a href="perf.html#Parallel">Use the Parallel Features</a>.</p>
+               </td>
+            </tr>
+         </table>
+      </section>
+
+      <section>
+         <title>Example</title>
+      </section>
+
+      <section>
+         <title>Basic usage of CUBE operation</title>
+         <source>
+salesinp = LOAD '/pig/data/salesdata' USING PigStorage(',') AS
+    (product:chararray, year:int, region:chararray, state:chararray, city:chararray, sales:long);
+cubedinp = CUBE salesinp BY CUBE(product,year);
+result = FOREACH cubedinp GENERATE FLATTEN(group), SUM(cube.sales) AS totalsales;</source>
+         <p>For a sample input tuple (car, 2012, midwest, ohio, columbus, 4000), the above query with cube operation will output</p>
+         <source>
+(car,2012,4000)
+(car,,4000)
+(,2012,4000)
+(,,4000)</source>
+      </section>
+
+      <section>
+         <title>Output schema</title>
+         <source>
+grunt> describe cubedinp;
+cubedinp: {group: (product: chararray,year: int),cube: {(product: chararray,year: int,region: chararray,
+state: chararray,city: chararray,sales: long)}}</source>
+         <p>Note the second column, ‘cube’ field which is a bag of all tuples that belong to ‘group’. Also note that the measure attribute ‘sales’ along with other unused dimensions in load statement are pushed down so that it can be referenced later while computing aggregates on the measure, like in this case SUM(cube.sales).</p>
+      </section>
+
+      <section>
+         <title>Basic usage of ROLLUP operation</title>
+         <source>
+salesinp = LOAD '/pig/data/salesdata' USING PigStorage(',') AS
+    (product:chararray, year:int, region:chararray, state:chararray, city:chararray, sales:long);
+rolledup = CUBE salesinp BY ROLLUP(region,state,city);
+result = FOREACH rolledup GENERATE FLATTEN(group), SUM(cube.sales) AS totalsales;</source>
+         <p>For a sample input tuple (car, 2012, midwest, ohio, columbus, 4000), the above query with rollup operation will output</p>
+         <source>
+(midwest,ohio,columbus,4000)
+(midwest,ohio,,4000)
+(midwest,,,4000)
+(,,,4000)</source>
+      </section>
+
+      <section>
+         <title>Output schema</title>
+         <source>
+grunt> describe rolledup;
+rolledup: {group: (region: chararray,state: chararray,city: chararray),cube: {(region: chararray,
+state: chararray,city: chararray,product: chararray,year: int,sales: long)}}</source>
+      </section>
+
+      <section>
+         <title>Basic usage of CUBE and ROLLUP operation combined</title>
+         <p>If CUBE and ROLLUP operations are used together, the output groups will be the cross product of all groups generated by cube and rollup operation. If there are m dimensions in cube operations and n dimensions in rollup operation then overall number of combinations will be (2^m) * (n+1).</p>
+         <source>
+salesinp = LOAD '/pig/data/salesdata' USING PigStorage(',') AS
+    (product:chararray, year:int, region:chararray, state:chararray, city:chararray, sales:long);
+cubed_and_rolled = CUBE salesinp BY CUBE(product,year), ROLLUP(region, state, city);
+result = FOREACH cubed_and_rolled GENERATE FLATTEN(group), SUM(cube.sales) AS totalsales;</source>
+         <p>For a sample input tuple (car, 2012, midwest, ohio, columbus, 4000), the above query with cube and rollup operation will output</p>
+         <source>
+(car,2012,midwest,ohio,columbus,4000)
+(car,2012,midwest,ohio,,4000)
+(car,2012,midwest,,,4000)
+(car,2012,,,,4000)
+(car,,midwest,ohio,columbus,4000)
+(car,,midwest,ohio,,4000)
+(car,,midwest,,,4000)
+(car,,,,,4000)
+(,2012,midwest,ohio,columbus,4000)
+(,2012,midwest,ohio,,4000)
+(,2012,midwest,,,4000)
+(,2012,,,,4000)
+(,,midwest,ohio,columbus,4000)
+(,,midwest,ohio,,4000)
+(,,midwest,,,4000)
+(,,,,,4000)</source>
+      </section>
+
+      <section>
+         <title>Output schema</title>
+         <source>
+grunt> describe cubed_and_rolled;
+cubed_and_rolled: {group: (product: chararray,year: int,region: chararray,
+state: chararray,city: chararray),cube: {(product: chararray,year: int,region: chararray,
+state: chararray,city: chararray,sales: long)}}</source>
+      </section>
+
+      <section>
+         <title>Handling null values in dimensions</title>
+         <p>Since null values are used to represent subtotals in cube and rollup operation, in order to differentiate the legitimate null values that already exists as dimension values, CUBE operator converts any null values in dimensions to "unknown" value before performing cube or rollup operation. For example, for CUBE(product,location) with a sample tuple (car,) the output will be </p>
+         <source>
+(car,unknown)
+(car,)
+(,unknown)
+(,)</source>
+      </section>
+   </section>
+
 <!-- =================================================================== -->    
    <section id="define">
    <title>DEFINE</title>
@@ -5445,7 +6317,7 @@ DUMP X;
                <p>A schema using the AS keyword (see <a href="#schemas">Schemas</a>).</p>
                <ul>
                   <li>
-                     <p>If the <a href="#Flatten">FLATTEN</a> operator is used, enclose the schema in parentheses.</p>
+                     <p>If the <a href="#flatten">FLATTEN</a> operator is used, enclose the schema in parentheses.</p>
                   </li>
                   <li>
                      <p>If the FLATTEN operator is not used, don't enclose the schema in parentheses.</p>
@@ -5481,7 +6353,7 @@ X = FOREACH B {
    
    <section id="projection">
    <title>Example: Projection</title>
-   <p>In this example the asterisk (*) is used to project all tuples from relation A to relation X. Relation A and X are identical.</p>
+   <p>In this example the asterisk (*) is used to project all fields from relation A to relation X. Relation A and X are identical.</p>
 <source>
 X = FOREACH A GENERATE *;
 
@@ -5576,7 +6448,7 @@ DUMP X;
    
    <section id="flatten-example">
    <title>Example: Flatten</title>
-   <p>In this example the <a href="#Flatten">FLATTEN</a> operator is used to eliminate nesting. </p>
+   <p>In this example the <a href="#flatten">FLATTEN</a> operator is used to eliminate nesting. </p>
 <source>
 X = FOREACH C GENERATE group, FLATTEN(A);
 
@@ -5624,7 +6496,7 @@ D = FOREACH C GENERATE flatten(A), flatten(b);
 E = GROUP D BY A::x;
 ……
 </source>
-   
+
    </section>
    
    <section id="nestedblock">
@@ -5636,7 +6508,7 @@ session = load 'session' as (uid, region);
 C = cogroup user by uid, session by uid;
 D = foreach C {
     crossed = cross user, session;
-    generate crossed;  
+    generate crossed;
 </source>
 <p>In this example FOREACH is nested to the second level.</p>
 <source>
@@ -5704,7 +6576,7 @@ DUMP X;
             
             
 <!-- =================================================================== -->
-   <section id="GROUP">
+   <section id="group">
    <title>GROUP</title>
    <p>Groups the data in one or more relations.</p>
    <p>Note: The GROUP and COGROUP operators are identical. Both operators work with one or more relations. 
@@ -5989,12 +6861,12 @@ DUMP B;
 (Paul,Jane)
 </source>
    
-   <p>In this example tuples are co-grouped using field “owner” from relation A and field “friend2” from relation B as the key fields. The DESCRIBE operator shows the schema for relation X, which has two fields, "group" and "A" (see the GROUP operator for information about the field names).</p>
+   <p>In this example tuples are co-grouped using field “owner” from relation A and field “friend2” from relation B as the key fields. The DESCRIBE operator shows the schema for relation X, which has three fields, "group", "A" and "B" (see the GROUP operator for information about the field names).</p>
 <source>
 X = COGROUP A BY owner, B BY friend2;
 
 DESCRIBE X;
-X: {group: chararray,A: {owner: chararray,pet: chararray},b: {firend1: chararray,friend2: chararray}}
+X: {group: chararray,A: {owner: chararray,pet: chararray},B: {friend1: chararray,friend2: chararray}}
 </source>
    
    <p>Relation X looks like this. A tuple is created for each unique key field. The tuple includes the key field and two bags. The first bag is the tuples from the first relation with the matching key field. The second bag is the tuples from the second relation with the matching key field. If no tuples match the key field, the bag is empty.</p>
@@ -6002,16 +6874,6 @@ X: {group: chararray,A: {owner: chararray,pet: chararray},b: {firend1: chararray
 (Alice,{(Alice,turtle),(Alice,goldfish),(Alice,cat)},{(Cindy,Alice),(Mark,Alice)})
 (Bob,{(Bob,dog),(Bob,cat)},{(Paul,Bob)})
 (Jane,{},{(Paul,Jane)})
-</source>
-   
-   <p>In this example tuples are co-grouped and the INNER keyword is used asymmetrically on only one of the relations.</p>
-<source>
-X = COGROUP A BY owner, B BY friend2 INNER;
-
-DUMP X;
-(Bob,{(Bob,dog),(Bob,cat)},{(Paul,Bob)})
-(Jane,{},{(Paul,Jane)})
-(Alice,{(Alice,turtle),(Alice,goldfish),(Alice,cat)},{(Cindy,Alice),(Mark,Alice)})
 </source>
    </section>
    
@@ -6117,7 +6979,7 @@ public class SimpleCustomPartitioner extends Partitioner &lt;PigNullableWritable
                <p>Use to perform replicated joins (see <a href="perf.html#Replicated-Joins">Replicated Joins</a>).</p>
             </td>
          </tr>
-         
+
          <tr>
             <td>
                <p>'skewed'</p>
@@ -6178,7 +7040,7 @@ public class SimpleCustomPartitioner extends Partitioner &lt;PigNullableWritable
    <section>
    <title>Usage</title>
    <p>Use the JOIN operator to perform an inner, equijoin join of two or more relations based on common field values. 
-   The JOIN operator always performs an inner join. Inner joins ignore null keys, so it makes sense to filter them out before the join.</p>
+   Inner joins ignore null keys, so it makes sense to filter them out before the join.</p>
    
    <p>Note the following about the GROUP/COGROUP and JOIN operators:</p>
       <ul>
@@ -6248,7 +7110,7 @@ DUMP X;
 
 <section id="join-outer">
    <title>JOIN (outer) </title>
-   <p>Performs an outer join of two or more relations based on common field values.</p>
+   <p>Performs an outer join of two relations based on common field values.</p>
    
    <section>
    <title>Syntax</title>
@@ -6344,7 +7206,7 @@ DUMP X;
                <p>Only left outer join is supported for replicated joins.</p>
             </td>
          </tr>
-         
+
                   <tr>
             <td>
                <p>'skewed'</p>
@@ -6502,7 +7364,7 @@ C = JOIN A BY name FULL, B BY name USING 'skewed';
    
    <section>
    <title>Examples</title>
-   <p>In this example the lmit is express as a scalar.</p>
+   <p>In this example the limit is expressed as a scalar.</p>
  <source>
 a = load 'a.txt';
 b = group a all;
@@ -6686,7 +7548,7 @@ ILLUSTRATE A;
 ---------------------------------------
 </source>
    <p>
-      For examples of how to specify more complex schemas for use with the LOAD operator, see Schemas for Complex Data Types and Schemas for Multiple Types.
+      For examples of how to specify more complex schemas for use with the LOAD operator, see <a href="#schema-complex">Schemas for Complex Data Types</a> and <a href="#schema-multi">Schemas for Multiple Types</a>.
       </p></section></section>
       
 
@@ -6734,7 +7596,7 @@ ILLUSTRATE A;
                <p>STORE ... INTO ... USING</p>
             </td>
             <td>
-               <p>See <a href="basic.html#STORE">STORE</a></p>
+               <p>See <a href="basic.html#store">STORE</a></p>
                <p>Store alias2 into the inputLocation using storeFunc, which is then used by the MapReduce job to read its data.</p>
                 
             </td>
@@ -6745,8 +7607,8 @@ ILLUSTRATE A;
                <p>LOAD ... USING ... AS </p>
             </td>
             <td>
-               <p>See <a href="basic.html#LOAD">LOAD</a></p>
-               <p>After running mr1.jar's MapReduce job, load back the data from outputLocation into alias1 using loadFunc as schema.</p>
+               <p>See <a href="basic.html#load">LOAD</a></p>
+               <p>After running mr.jar's MapReduce job, load back the data from outputLocation into alias1 using loadFunc as schema.</p>
             </td>
      </tr>
 
@@ -6849,7 +7711,7 @@ B = MAPREDUCE 'wordcount.jar' STORE A INTO 'inputDir' LOAD 'outputDir'
             </td>
             <td>
                <p>Increase the parallelism of a job by specifying the number of reduce tasks, n.</p>
-               <p>For more information, see <a href="perf.html#Parallel">Use the Parallel Features</a>.</p>
+               <p>For more information, see <a href="perf.html#parallel">Use the Parallel Features</a>.</p>
             </td>
          </tr> 
    </table></section>
@@ -6909,13 +7771,168 @@ DUMP X;
 </source>
    
    </section></section>
+    <!-- =================================================================== -->     
+    <section id="rank">
+        <title>RANK</title>
+        <p>Returns each tuple with the rank within a relation.</p>
+        
+        <section>
+            <title>Syntax</title>
+            <table>
+                <tr> 
+                    <td>
+                        <p>alias = RANK alias [ BY { * [ASC|DESC] | field_alias [ASC|DESC] [, field_alias [ASC|DESC] …] } [DENSE] ];</p>
+                    </td>
+                </tr> 
+            </table>
+        </section>
+    
+        
+        <section>
+            <title>Terms</title>
+            <table>
+                <tr>
+                    <td>
+                        <p>alias</p>
+                    </td>
+                    <td>
+                        <p>The name of a relation.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <p>*</p>
+                    </td>
+                    <td>
+                        <p>The designator for a tuple.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <p>field_alias</p>
+                    </td>
+                    <td>
+                        <p>A field in the relation. The field must be a simple type.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <p>ASC</p>
+                    </td>
+                    <td>
+                        <p>Sort in ascending order.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <p>DESC</p>
+                    </td>
+                    <td>
+                        <p>Sort in descending order.</p>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>
+                        <p>DENSE</p>
+                    </td>
+                    <td>
+                        <p>No gap in the ranking values. </p>
+                    </td>
+                </tr> 
+            </table>
+        </section>
+        
+        <section>
+            <title>Usage</title>
+            <p>When specifying no field to sort on, the RANK operator simply prepends a sequential value to each tuple.</p>
+            <p>Otherwise, the RANK operator uses each field (or set of fields) to sort the relation. The rank of a tuple is one plus the number of different rank values preceding it. If two or more tuples tie on the sorting field values, they will receive the same rank.</p>
+            <p><strong>NOTE:</strong> When using the option <strong>DENSE</strong>, ties do not cause gaps in ranking values.</p>
+
+        </section>  
+        
+        <section>
+            <title>Examples</title>
+            <p>Suppose we have relation A.</p>
+            <source>
+A = load 'data' AS (f1:chararray,f2:int,f3:chararray);
    
+DUMP A;
+(David,1,N)
+(Tete,2,N)
+(Ranjit,3,M)
+(Ranjit,3,P)
+(David,4,Q)
+(David,4,Q)
+(Jillian,8,Q)
+(JaePak,7,Q)
+(Michael,8,T)
+(Jillian,8,Q)
+(Jose,10,V)
+            </source>
+            <p>In this example, the RANK operator does not change the order of the relation and simply prepends to each tuple a sequential value.</p>
+            <source>
+B = rank A;
+
+dump B;
+(1,David,1,N)
+(2,Tete,2,N)
+(3,Ranjit,3,M)
+(4,Ranjit,3,P)
+(5,David,4,Q)
+(6,David,4,Q)
+(7,Jillian,8,Q)
+(8,JaePak,7,Q)
+(9,Michael,8,T)
+(10,Jillian,8,Q)
+(11,Jose,10,V)
+            </source>
+            
+            <p>In this example, the RANK operator works with f1 and f2 fields, and each one with different sorting order. RANK sorts the relation on these fields and 
+                prepends the rank value to each tuple. Otherwise, the RANK operator uses each field (or set of fields) to sort the relation. The rank of a tuple is one plus the number of different rank values preceding it. If two or more tuples tie on the sorting field values, they will receive the same rank.</p>
+            <source>
+C = rank A by f1 DESC, f2 ASC;
+                                
+dump C;
+(1,Tete,2,N)
+(2,Ranjit,3,M)
+(2,Ranjit,3,P)
+(4,Michael,8,T)
+(5,Jose,10,V)
+(6,Jillian,8,Q)
+(6,Jillian,8,Q)
+(8,JaePak,7,Q)
+(9,David,1,N)
+(10,David,4,Q)
+(10,David,4,Q)                
+            </source>
+            
+            <p>Same example as previous, but DENSE. In this case there are no gaps in ranking values.</p>
+            <source>
+C = rank A by f1 DESC, f2 ASC DENSE;
+
+dump C;
+(1,Tete,2,N)
+(2,Ranjit,3,M)
+(2,Ranjit,3,P)
+(3,Michael,8,T)
+(4,Jose,10,V)
+(5,Jillian,8,Q)
+(5,Jillian,8,Q)
+(6,JaePak,7,Q)
+(7,David,1,N)
+(8,David,4,Q)
+(8,David,4,Q)
+            </source>
+            
+        </section>
+    </section>
 
 
 <!-- =========================================================================== -->
    <section id="sample">
    <title>SAMPLE</title>
-   <p>Partitions a relation into two or more relations.</p>
+   <p>Selects a random sample of data based on the specified sample size.</p>
    
    <section>
    <title>Syntax</title>
@@ -6945,7 +7962,7 @@ DUMP X;
             <td>
                <p>Sample size, either</p>
                <ul>
-               <li>a constant, rage 0 to 1 (for example, enter 0.1 for 10%)</li>
+               <li>a constant, range 0 to 1 (for example, enter 0.1 for 10%)</li>
                 <li>a scalar used in an expression</li>
                </ul>
                <p></p>
@@ -7157,7 +8174,7 @@ output_var = FILTER input_var BY (field1 is not null);
                   <li>
                   
                   
-                     <p>You can use a built in function (see the <a href="func.html#Load-Store-Functions">Load/Store Functions</a>). PigStorage is the default store function and does not need to be specified (simply omit the USING clause).</p>
+                     <p>You can use a built in function (see the <a href="func.html#load-store-functions">Load/Store Functions</a>). PigStorage is the default store function and does not need to be specified (simply omit the USING clause).</p>
                   </li>
                   <li>
                      <p>You can write your own store function  
@@ -7172,7 +8189,7 @@ output_var = FILTER input_var BY (field1 is not null);
    <title>Usage</title>
    <p>Use the STORE operator to run (execute) Pig Latin statements and save (persist) results to the file system. Use STORE for production scripts and batch mode processing.</p>
    
-   <p>Note: To debug scripts during development, you can use <a href="test.html#DUMP">DUMP</a> to check intermediate results.</p>
+   <p>Note: To debug scripts during development, you can use <a href="test.html#dump">DUMP</a> to check intermediate results.</p>
 </section>
    
    <section>
@@ -7454,9 +8471,9 @@ A union B: null
   
 <p>Union columns with incompatible types result in a bytearray type: </p>
 <source>
-A: (a1:long, a2:long) 
-B: (b1:(b11:long, b12:long), b2:long) 
-A union B: (a1:bytearray, a2:long) 
+A: (a1:long, a2:long)
+B: (b1:(b11:long, b12:long), b2:long)
+A union B: (a1:bytearray, a2:long)
 </source>
 
 <p>Union columns of compatible type will produce an "escalate" type. 
@@ -7572,7 +8589,7 @@ DUMP U;
                <p>alias</p>
             </td>
             <td>
-               <p>The name for a UDF function or the name for a streaming command (the cmd_alias for the <a href="#STREAM">STREAM</a> operator). </p>
+               <p>The name for a UDF function or the name for a streaming command (the cmd_alias for the <a href="#stream">STREAM</a> operator). </p>
             </td>
          </tr>
          <tr>
@@ -7737,29 +8754,29 @@ B = STREAM B THROUGH CMD;
 <source>
 interface PigToStream {
 
-        /**
-         * Given a tuple, produce an array of bytes to be passed to the streaming
-         * executable.
-         */
-        public byte[] serialize(Tuple t) throws IOException;
-    }
+    /**
+     * Given a tuple, produce an array of bytes to be passed to the streaming
+     * executable.
+     */
+    public byte[] serialize(Tuple t) throws IOException;
+}
 
-    interface StreamToPig {
+interface StreamToPig {
 
-        /**
-         *  Given a byte array from a streaming executable, produce a tuple.
-         */
-        public Tuple deserialize(byte[]) throws IOException;
+    /**
+     *  Given a byte array from a streaming executable, produce a tuple.
+     */
+    public Tuple deserialize(byte[]) throws IOException;
 
-        /**
-         * This will be called on the front end during planning and not on the back
-         * end during execution.
-         *
-         * @return the {@link LoadCaster} associated with this object.
-         * @throws IOException if there is an exception during LoadCaster
-         */
-        public LoadCaster getLoadCaster() throws IOException;
-    }
+    /**
+     * This will be called on the front end during planning and not on the back
+     * end during execution.
+     *
+     * @return the {@link LoadCaster} associated with this object.
+     * @throws IOException if there is an exception during LoadCaster
+     */
+    public LoadCaster getLoadCaster() throws IOException;
+}
 </source>  
    
    </section>
@@ -7779,7 +8796,7 @@ interface PigToStream {
 OP = stream IP through 'script';
 or
 DEFINE CMD 'script' ship('/a/b/script');
-OP = stream IP through 'CMD';
+OP = stream IP through CMD;
 </source>
 		</li>
 	    <li>
@@ -7872,7 +8889,7 @@ X = STREAM A THROUGH Y;
  
      <section>
    <title>Example: DEFINE with STREAM</title>
-<p>In this example a command is defined for use with the <a href="#STREAM">STREAM</a> operator.</p>
+<p>In this example a command is defined for use with the <a href="#stream">STREAM</a> operator.</p>
 <source>
 A = LOAD 'data';
 
@@ -7890,8 +8907,11 @@ DEFINE Y 'stream.pl' stderr('&lt;dir&gt;' limit 100);
 
 X = STREAM A THROUGH Y;
 </source>
+</section>
 
    
+<section>
+<title>Examples: DEFINE a function</title>
 <p>In this example a function is defined for use with the FOREACH …GENERATE operator.</p>
 <source>
 REGISTER /src/myfunc.jar
@@ -7947,7 +8967,7 @@ B = FOREACH A GENERATE myFunc($0);
    <p id="register-glob">Additionally, JAR files stored in local file systems can be specified as a glob pattern using “*”. Pig will search for matching jars in the local file system, either the relative path (relative to your working directory) or the absolute path. Pig will pick up all JARs that match the glob.</p>
    
    <p><strong>Command Line</strong></p>
-   <p>You can register additional files (to use with your Pig script) via the command line using the -Dpig.additional.jars option. 
+   <p>You can register additional files (to use with your Pig script) via PIG_OPTS environment variable using the -Dpig.additional.jars.comma option.
 For more information see <a href="udf.html">User Defined Functions</a>.</p>
    </section>
    
@@ -7962,15 +8982,17 @@ A = LOAD 'students';
 B = FOREACH A GENERATE myfunc.MyEvalFunc($0);
 </source>
    
-<p>In this example additional JAR files are registered via the command line.</p>
+<p>In this example additional JAR files are registered via PIG_OPTS environment variable.</p>
 <source>
-pig -Dpig.additional.jars=my.jar:your.jar script.pig
+export PIG_OPTS="-Dpig.additional.jars.comma=my.jar,your.jar"
 </source>
 
-<p>In this example a JAR file stored in HDFS is registered.</p>
+<p>In this example a JAR file stored in HDFS and a local JAR file are registered.</p>
 <source>
-java -cp pig.jar org.apache.pig.Main  hdfs://nn.mydomain.com:9020/myscripts/script.pig
+export PIG_OPTS="-Dpig.additional.jars.comma=hdfs://nn.mydomain.com:9020/myjars/my.jar,file:///home/root/pig/your.jar"
 </source>
+
+<p>Note, the legacy property pig.additional.jars which use colon as separator is still supported. But we recommend to use pig.additional.jars.comma since colon is also used in URL scheme, and thus we cannot use full scheme in the list. We will deprecate pig.additional.jar in future releases.</p>
 
 <p>This example shows how to specify a glob pattern using either a relative path or an absolute path.</p>
 <source>
@@ -7980,7 +9002,7 @@ register jars/*.jar
 </source>
    </section>
    </section>
-   </section>  
+   </section>
 
   </body>
 </document>

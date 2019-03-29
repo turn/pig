@@ -23,6 +23,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -113,6 +114,11 @@ public class PhysicalPlan extends OperatorPlan<PhysicalOperator> implements Clon
      * @param verbose : Amount of information to print
      */
     public void explain(PrintStream ps, String format, boolean verbose) {
+        if (format.equals("xml")) {
+            ps.println("<physicalPlan>XML Not Supported</physicalPlan>");
+            return;
+        }
+        
         ps.println("#-----------------------------------------------");
         ps.println("# Physical Plan:");
         ps.println("#-----------------------------------------------");
@@ -223,7 +229,10 @@ public class PhysicalPlan extends OperatorPlan<PhysicalOperator> implements Clon
         // clone.
         Map<PhysicalOperator, PhysicalOperator> matches = 
             new HashMap<PhysicalOperator, PhysicalOperator>(mOps.size());
-        for (PhysicalOperator op : mOps.keySet()) {
+        // Sorting just so that explain output (scope ids) is same in jdk7 and jdk8
+        List<PhysicalOperator> opsToClone = new ArrayList<PhysicalOperator>(mOps.keySet());
+        Collections.sort(opsToClone);
+        for (PhysicalOperator op : opsToClone) {
             PhysicalOperator c = op.clone();
             clone.add(c);
             if (opmap != null)
